@@ -150,25 +150,23 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr &msg)
     }
 }
 
-bool revolve (float *linear, float *angular, bool *revolution , bool *done , double *time)
+bool run_spiral (float *linear, float *angular, bool *revolution , bool *done , double *time)
 {
   if ( !*revolution )
-        {    ROS_INFO("initializing revolution");
+        {    ROS_INFO("initializing spiral");
             *angular = M_PI/6. ;
-            *linear = 0.0;
-            if (*time >=8 )
-            {
+            *linear = 0.1;
+
              *revolution=true ;
-            }
+
         }
-        else if (*revolution && *time >= 8. )
+        else if (*revolution )
         {
-            if ( yaw < (M_PI/90) && yaw >  (-M_PI/90)) 
+            if ( yaw < DEG2RAD(5) && yaw >  DEG2RAD(-5) ||
+             yaw > DEG2RAD(175) && yaw <  DEG2RAD(-175))
             {       
                 ROS_INFO("Revolution DONE ");    
-                *done =true ;
-                *revolution=false;  
-                *angular=0.0;
+                *angular /= 1.1;
             }
             else
             { 
@@ -221,57 +219,15 @@ int main(int argc, char **argv)
         double time = double (secondsElapsed);
         ROS_INFO("lin: %f  ang:%f  time(%f )Pos: (%f, %f) yaw: %f laser: %f",linear, angular ,time,posX, posY, RAD2DEG(yaw), minLaserDist);
           
-        bool any_bumper_pressed = false;
-        for (uint32_t b_idx = 0; b_idx < N_BUMPER; ++b_idx)
-         {
-             any_bumper_pressed |= (bumper[b_idx] == kobuki_msgs::BumperEvent::PRESSED);
-         }
 
-        if (!done )
 
-        {
-          revolve( &linear, &angular, &revolution , &done , &time);
-        }
-        
 
-        else if ( done && time >= 5. )
-        {
-            ROS_INFO("Starting procedure");   
+          run_spiral( &linear, &angular, &revolution , &done , &time);
+         //angular = M_PI/6. ;
+         //   linear = 0.1;
 
-          if ( minLaserDist >= 0.60 && !any_bumper_pressed && process_state == "a" )
-          {
-            angular = 0.0;
-            linear = 0.2;
-            ROS_INFO("going straight ");
-            check_left_done= false ;
-            check_right_done=  false ;
-            
-          }  
-          else if ((minLaserDist <= 0.60 || any_bumper_pressed ) && process_state == "a"  )
-          {
-              process_state = "check_left";
-          }
-          else if ( process_state == "check_left")
-          {
-             
-            if ( check_left_done = Turn(90. , &linear, &angular , &check_left, &final_ori , &final_ori_max , &final_ori_min)) 
-              process_state = "check_right";
-             
-          }
 
-          else if ( process_state == "check_right" )
 
-          {  
-            if (check_right_done = Turn(-180. , &linear, &angular , &check_right, &final_ori , &final_ori_max , &final_ori_min))
-                process_state = "decide";
-               
-          }
-          else if (process_state == "decide")
-           {
-             ROS_INFO("DONE");
-           }
-            
-        }
         
         // The last thing to do is to update the timer.
         secondsElapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - start).count();
