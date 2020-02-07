@@ -140,10 +140,25 @@ void turnAround(float *yaw, float *angular, float *linear){
 
     
 
-void goStraight(float *ptr_angular, float angular_speed, float *ptr_linear, float linear_speed ){
-    *ptr_linear = 0.2;
-    *ptr_angular = 0.0;    
+void goStraight(float *linear, float *angular)
+{
+    *angular = 0.0;
+
+    if (MidLaserDist > 1.3 && MidLaserDist < 50)
+    {
+        ROS_INFO("Going Straight");
+        *linear = 0.2;
+    }
+    else if (MidLaserDist <= 1.3 && MidLaserDist > 0.5)
+    {
+        ROS_INFO("Going Straight");
+        *linear = 0.15;
+    }
+    else {
+        *linear = 0.0;
+    }
 }
+
 void stopRobot(float *ptr_angular, float *ptr_linear ){
     *ptr_linear = 0.0;
     *ptr_angular = 0.0;    
@@ -197,33 +212,7 @@ int main(int argc, char **argv)
             any_bumper_pressed |= (bumper[b_idx] == kobuki_msgs::BumperEvent::PRESSED);
         }
 
-
-            
-            // if(secondsElapsed % 30 == 0){
-               
-            //    turnAround(&yaw, &angular, &linear); 
-            // }
-            if(!any_bumper_pressed && MidLaserDist >=2.0 && minLaserDist>0.75 ){;
-                goStraight(&angular, 0.0, &linear, 0.2);//fast
-                ROS_INFO("Going Straight");
-            }
-            if(!any_bumper_pressed && MidLaserDist >=1.3 && minLaserDist>0.6 ){;
-                goStraight(&angular, 0.0, &linear, 0.15);//fast
-                ROS_INFO("Going Straight");
-            }
-            
-   
-            else if(!any_bumper_pressed && MidLaserDist<1.3 && LeftLaserDist >=1.2 && minLaserDist>=0.6)//turn Left
-            {
-            
-                angular= M_PI/12.0;
-                linear= 0.14;
-            }
-            else{
-                angular=M_PI/12.0;
-                linear=0.0;
-            }
-            
+                    
 
 
 
