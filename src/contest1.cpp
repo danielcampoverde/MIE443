@@ -164,7 +164,9 @@ void stopRobot(float *ptr_angular, float *ptr_linear ){
     *ptr_angular = 0.0;    
 }
 
-
+void steeer(double &angular, double &yaw, double &desired_angle){
+    
+}
 
 
 int main(int argc, char **argv)
