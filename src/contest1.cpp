@@ -173,22 +173,28 @@ void stopRobot(float &linear, float &angular)
     angular = 0.0;
 }
 
-double yawSmallestDifference(double yaw_end, double yaw_start) {
-        
-    if (yaw_start == 1000){
+double yawSmallestDifference(double yaw_end, double yaw_start)
+{
+
+    if (yaw_start == 1000)
+    {
         return 0.0;
     }
 
-    double relative_yaw = yaw_end-yaw_start;
-    // CW case 
-    if (relative_yaw > 0){
-        if(relative_yaw > DEG2RAD(180)){
+    double relative_yaw = yaw_end - yaw_start;
+    // CW case
+    if (relative_yaw > 0)
+    {
+        if (relative_yaw > DEG2RAD(180))
+        {
             relative_yaw -= DEG2RAD(360);
         }
-    } 
+    }
     // CCW case
-    else{
-        if(relative_yaw < -DEG2RAD(180)){
+    else
+    {
+        if (relative_yaw < -DEG2RAD(180))
+        {
             relative_yaw += DEG2RAD(360);
         }
     }
@@ -215,7 +221,6 @@ void steer(double &angular, double &curr_yaw, double desired_angle, bool &done)
         return;
     }
 
-    
     accu_yaw += std::abs(yawSmallestDifference(curr_yaw, prev_yaw));
     ROS_INFO("accumulated yaw %f", accu_yaw);
     prev_yaw = curr_yaw;
@@ -242,29 +247,32 @@ void steer(double &angular, double &curr_yaw, double desired_angle, bool &done)
     }
 }
 
-double desiredAbsoluteYaw(double &yaw, double &desired_angle){
+double desiredAbsoluteYaw(double &yaw, double &desired_angle)
+{
     // CW angles are negative from 0 to -180 IN DEGREES
 
     double absolute_desired_yaw;
 
     absolute_desired_yaw = yaw + desired_angle;
-    // CW case 
-    if (desired_angle < 0){
-        if(absolute_desired_yaw < -180){
+    // CW case
+    if (desired_angle < 0)
+    {
+        if (absolute_desired_yaw < -180)
+        {
             absolute_desired_yaw += 360;
         }
-    } 
+    }
     // CCW case
-    else{
-        if(absolute_desired_yaw > 180){
+    else
+    {
+        if (absolute_desired_yaw > 180)
+        {
             absolute_desired_yaw -= 360;
         }
     }
 
     return absolute_desired_yaw;
 }
-
-
 
 int main(int argc, char **argv)
 {
@@ -292,34 +300,33 @@ int main(int argc, char **argv)
     float *ptr_MidLaserDist = &MidLaserDist;
     float *ptr_RightLaserDist = &RightLaserDist;
 
-
     bool done = false;
-    int order = 1 ;
+    int order = 1;
     while (ros::ok() && secondsElapsed <= 480)
     {
         ros::spinOnce();
         //fill with your code
 
-        if (secondsElapsed > 1 && order == 1)
-        { // sems like it needs a bit of time to set up correct values of yaw
+        // if (secondsElapsed > 1 && order == 1)
+        // { // sems like it needs a bit of time to set up correct values of yaw
 
-            steer(angular, yaw, DEG2RAD(-36), done);
-            if (done)
-            {
-                order = 2;
-                done = false;
-            }
-        }
-        else if (order == 2)
-        {
-            steer(angular, yaw, DEG2RAD(365), done);
-            if (done)
-            {
-                order = 2;
-                done = false;
-                angular = 0;
-            }
-        }
+        //     steer(angular, yaw, DEG2RAD(-36), done);
+        //     if (done)
+        //     {
+        //         order = 2;
+        //         done = false;
+        //     }
+        // }
+        // else if (order == 2)
+        // {
+        //     steer(angular, yaw, DEG2RAD(365), done);
+        //     if (done)
+        //     {
+        //         order = 2;
+        //         done = false;
+        //         angular = 0;
+        //     }
+        // }
 
         //ROS_INFO("Postion: (%f, %f) Orientation: %f degrees Range: %f", posX, posY, RAD2DEG(yaw), minLaserDist);
         ROS_INFO(" Orientation deg: %f, rad: %f", RAD2DEG(yaw), yaw);
@@ -331,19 +338,52 @@ int main(int argc, char **argv)
             any_bumper_pressed |= (bumper[b_idx] == kobuki_msgs::BumperEvent::PRESSED);
         }
 
+        if (!any_bumper_pressed)
+        {
+            if (secondsElapsed > 1 && order == 1)
+            {
+                goRobot(linear, angular);
+                if (RightLaserDist > 0.6 && RightLaserDist < 0.8) // Moving close to wall -> Small wall alignment
+                {
+                    steer(angular, yaw, DEG2RAD(5), done);
+                    goRobot(linear, angular);
+                }
+                else if (RightLaserDist > 0.55 && RightLaserDist < 0.6) // Moving closer -> wall alignment
+                {
+                    steer(angular, yaw, DEG2RAD(30), done);
+                    goRobot(linear, angular);
+                }
+                else if (RightLaserDist > 0.45 && RightLaserDist < 0.0) // Moving too close -> stop and turn!
+                {
+                    stopRobot(linear, angular);
+                    steer(angular, yaw, DEG2RAD(45), done);
+                    goRobot(linear, angular);
+                }
+                else if (RightLaserDist > 0.8 && RightLaserDist < 1.3) //Moway away from wall -> wall alignment
+                {
+                    steer(angular, yaw, DEG2RAD(-5), done);
+                    goRobot(linear, angular);
+                }
+                else if (RightLaserDist > 1.3)
+                {
+                    goRobot(linear, angular);
+                }
+            }
+        }
+        else
+        {
+            linear = 0.0;
+            angular = 0.0;
+            // Go Back
+        }
 
         //The last thing to do is to update the timer.
 
-
-            //The last thing to do is to update the timer.
-        
-            secondsElapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - start).count();
-            loop_rate.sleep();
-            vel.angular.z = angular;
-            vel.linear.x = linear;
-            vel_pub.publish(vel);
-    
- 
+        secondsElapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - start).count();
+        loop_rate.sleep();
+        vel.angular.z = angular;
+        vel.linear.x = linear;
+        vel_pub.publish(vel);
     }
 
     return 0;
