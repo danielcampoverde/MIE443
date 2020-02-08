@@ -204,7 +204,7 @@ void steer(double &angular, double &curr_yaw, double desired_angle, bool &done)
         ROS_ERROR("Must specifiy an angle not equal to zero");
     }
     static double accu_yaw = 0;
-    static double prev_yaw = 1000;
+    static double prev_yaw = 1000; // inf
 
     if (done)
     {
@@ -222,8 +222,9 @@ void steer(double &angular, double &curr_yaw, double desired_angle, bool &done)
 
     if (std::abs(accu_yaw) > std::abs(desired_angle))
     {
-        angular = 0; // within threshold, stop steering
+        angular = 0; 
         done = true;
+        return;
     }
     // CW (0 to -180)
 
