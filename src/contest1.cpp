@@ -38,7 +38,6 @@ void bumperCallback(const kobuki_msgs::BumperEvent::ConstPtr &msg)
     bumper[msg->bumper] = msg->state;
 }
 
-
 void laserCallback(const sensor_msgs::LaserScan::ConstPtr &msg)
 {
     //fill with your code
@@ -55,11 +54,10 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr &msg)
         {
             minLaserDist = std::min(minLaserDist, msg->ranges[laser_idx]);
             maxLaserDist = std::max(maxLaserDist, msg->ranges[laser_idx]);
-            
         }
-        MidLaserDist = msg->ranges[nLasers / 2];//no need to use the min function
-        LeftLaserDist = msg -> ranges[nLasers/2 - 15];
-        RightLaserDist = msg -> ranges[nLasers/2 + 15];
+        MidLaserDist = msg->ranges[nLasers / 2]; //no need to use the min function
+        LeftLaserDist = msg->ranges[nLasers / 2 - 15];
+        RightLaserDist = msg->ranges[nLasers / 2 + 15];
         //ROS_INFO("MidLaserDist: %f, RightLaserDist: %f, LeftLaserDist: %f", MidLaserDist, LeftLaserDist, RightLaserDist);
     }
     else
@@ -67,8 +65,6 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr &msg)
         for (uint32_t laser_idx = 0; laser_idx < nLasers; ++laser_idx)
         {
             minLaserDist = std::min(minLaserDist, msg->ranges[laser_idx]);
-            
-
         }
     }
 }
@@ -85,93 +81,105 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr &msg)
 void turnLeft(float *yaw_val, float *angular_val, float *linear_val)
 {
     float desired_yaw, current_yaw;
-    
-    if(initial_val_assign = false)
+
+    if (initial_val_assign = false)
     {
         current_yaw = *yaw_val;
         initial_val_assign = true;
-     
-        if(current_yaw> -M_PI/2.0 && current_yaw <= M_PI)//from -90 to +180
+
+        if (current_yaw > -M_PI / 2.0 && current_yaw <= M_PI) //from -90 to +180
         {
-            desired_yaw = current_yaw-M_PI/2.0;
+            desired_yaw = current_yaw - M_PI / 2.0;
         }
-        else if(current_yaw <= -M_PI/2.0 && current_yaw >= -M_PI){
-            desired_yaw = (current_yaw + M_PI*2.0) - M_PI/2.0;
+        else if (current_yaw <= -M_PI / 2.0 && current_yaw >= -M_PI)
+        {
+            desired_yaw = (current_yaw + M_PI * 2.0) - M_PI / 2.0;
         }
     }
-    if((abs(*yaw_val) - abs(current_yaw)) <= M_PI/2.0)
+    if ((abs(*yaw_val) - abs(current_yaw)) <= M_PI / 2.0)
     {
         *angular_val = 0.0;
         *linear_val = 0.0;
         initial_val_assign = false;
         check_Left_Turn = false;
     }
-    else if((abs(*yaw_val) - abs(current_yaw))>M_PI/2.0){
+    else if ((abs(*yaw_val) - abs(current_yaw)) > M_PI / 2.0)
+    {
         *angular_val = 0.2;
         *linear_val = 0.0;
     }
 }
 
-
-void turnAround(float *yaw, float *angular, float *linear){
-    float nearest_yaw;
-    if(*yaw <0 && *yaw>=-M_PI){//0 to -90
-        nearest_yaw = -M_PI/2.0;
-    }
-    else if(*yaw >=0 && *yaw<=M_PI){
-        nearest_yaw = M_PI/2;
-    }
-    if(nearest_yaw<0){
-        if(*yaw != nearest_yaw-M_PI/180.0){
-            *angular = M_PI/12.0;
-            *linear = 0.0;
-            ros::spinOnce();
-        }
-    }
-    else if(nearest_yaw>0){
-        if(*yaw != nearest_yaw-M_PI/180.0){
-            *angular = -M_PI/12.0;
-            *linear = 0.0;
-            ros::spinOnce();
-        }
-    }
-}
-
-
-    
-
-void goStraight(float *linear, float *angular)
+void turnAround(float *yaw, float *angular, float *linear)
 {
-    *angular = 0.0;
-
-    if (MidLaserDist > 1.3 && MidLaserDist < 50)
-    {
-        ROS_INFO("Going Straight");
-        *linear = 0.2;
+    float nearest_yaw;
+    if (*yaw < 0 && *yaw >= -M_PI)
+    { //0 to -90
+        nearest_yaw = -M_PI / 2.0;
     }
-    else if (MidLaserDist <= 1.3 && MidLaserDist > 0.5)
+    else if (*yaw >= 0 && *yaw <= M_PI)
     {
-        ROS_INFO("Going Straight");
-        *linear = 0.15;
+        nearest_yaw = M_PI / 2;
     }
-    else {
-        *linear = 0.0;
+    if (nearest_yaw < 0)
+    {
+        if (*yaw != nearest_yaw - M_PI / 180.0)
+        {
+            *angular = M_PI / 12.0;
+            *linear = 0.0;
+            ros::spinOnce();
+        }
+    }
+    else if (nearest_yaw > 0)
+    {
+        if (*yaw != nearest_yaw - M_PI / 180.0)
+        {
+            *angular = -M_PI / 12.0;
+            *linear = 0.0;
+            ros::spinOnce();
+        }
     }
 }
 
-void stopRobot(float *ptr_angular, float *ptr_linear ){
-    *ptr_linear = 0.0;
-    *ptr_angular = 0.0;    
+void goRobot(float &linear, float &angular)
+{
+    angular = 0.0;
+
+    if (MidLaserDist < 0.5)
+    {
+        ROS_INFO("Wall Detected. STOP");
+        linear = 0.0;
+    }
+    else if (MidLaserDist <= 0.8 && MidLaserDist >= 0.5)
+    {
+        ROS_INFO("Going Straight: Wall closer");
+        linear = 0.15;
+    }
+    else if (MidLaserDist > 0.8 && MidLaserDist < 3)
+    {
+        ROS_INFO("Going Straight");
+        linear = 0.2;
+    }
+    else
+    {
+        linear = 0.0;
+    }
 }
 
-<<<<<<< 2c23e76590d9e58dac41eb7995a90f2f2074c98b
+void stopRobot(float &linear, float &angular)
+{
+    linear = 0.0;
+    angular = 0.0;
+}
+
+<<<<<<< Updated upstream
 void steeer(double &angular, double &yaw, double &desired_angle){
     
 }
 
 
 =======
->>>>>>> Auto stash before merge of "wall_follow" and "origin/wall_follow"
+>>>>>>> Stashed changes
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "image_listener");
@@ -198,14 +206,10 @@ int main(int argc, char **argv)
     float *ptr_MidLaserDist = &MidLaserDist;
     float *ptr_RightLaserDist = &RightLaserDist;
 
-
-
     while (ros::ok() && secondsElapsed <= 480)
     {
         ros::spinOnce();
         //fill with your code
-
-
 
         //ROS_INFO("Postion: (%f, %f) Orientation: %f degrees Range: %f", posX, posY, RAD2DEG(yaw), minLaserDist);
         //ROS_INFO(" Orientation deg: %f, rad: %f", RAD2DEG(yaw), yaw);
@@ -217,22 +221,50 @@ int main(int argc, char **argv)
             any_bumper_pressed |= (bumper[b_idx] == kobuki_msgs::BumperEvent::PRESSED);
         }
 
-                    
+        if (!any_bumper_pressed)
+        {
+            goRobot(linear, angular);
+            // if (RightLaserDist > 0.6 && RightLaserDist < 0.8) // Moving close to wall -> Small wall alignment
+            // {
+            //     // steer(5);
+            //     goRobot(linear, angular);
+            // }
+            // else if (RightLaserDist > 0.55 && RightLaserDist < 0.6) // Moving closer -> wall alignment
+            // {
+            //     // steer(30);
+            //     goRobot(linear, angular);
+            // }
+            // else if (RightLaserDist > 0.45 && RightLaserDist < 0.0) // Moving too close -> stop and turn!
+            // {
+            //     stopRobot(linear, angular);
+            //     // steer(45);
+            //     goRobot(linear, angular);
+            // }
+            // else if (RightLaserDist > 0.8 && RightLaserDist < 1.3) //Moway away from wall -> wall alignment
+            // {
+            //     // steer(-5);
+            //     goRobot(linear, angular);
+            // }
+            // else if (RightLaserDist > 1.3)
+            // {
+            //     goRobot(linear, angular);
+            // }
+        }
+        else
+        {
+            linear = 0.0;
+            angular = 0.0;
+            // Go Back
+        }
 
+        //The last thing to do is to update the timer.
 
-
-
-            //The last thing to do is to update the timer.
-        
-            secondsElapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - start).count();
-            loop_rate.sleep();
-            vel.angular.z = angular;
-            vel.linear.x = linear;
-            vel_pub.publish(vel);
-    
- 
+        secondsElapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - start).count();
+        loop_rate.sleep();
+        vel.angular.z = angular;
+        vel.linear.x = linear;
+        vel_pub.publish(vel);
     }
 
     return 0;
-}   
-
+}
