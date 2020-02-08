@@ -164,11 +164,14 @@ void stopRobot(float *ptr_angular, float *ptr_linear ){
     *ptr_angular = 0.0;    
 }
 
+<<<<<<< 2c23e76590d9e58dac41eb7995a90f2f2074c98b
 void steeer(double &angular, double &yaw, double &desired_angle){
     
 }
 
 
+=======
+>>>>>>> Auto stash before merge of "wall_follow" and "origin/wall_follow"
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "image_listener");
