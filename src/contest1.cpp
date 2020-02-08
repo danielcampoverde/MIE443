@@ -18,7 +18,8 @@
 
 float angular = 0.0;
 float liner = 0.0;
-float posX = 0.0, posY = 0.0, yaw = 0.0;
+float posX = 0.0, posY = 0.0;
+double yaw = 0.0;
 uint8_t bumper[3] = {kobuki_msgs::BumperEvent::RELEASED, kobuki_msgs::BumperEvent::RELEASED, kobuki_msgs::BumperEvent::RELEASED};
 uint8_t leftState = bumper[kobuki_msgs::BumperEvent::LEFT];
 
@@ -164,9 +165,97 @@ void stopRobot(float *ptr_angular, float *ptr_linear ){
     *ptr_angular = 0.0;    
 }
 
-void steeer(double &angular, double &yaw, double &desired_angle){
-    
+double yawSmallestDifference(double yaw_end, double yaw_start) {
+        
+    if (yaw_start == 1000){
+        return 0.0;
+    }
+
+    double relative_yaw = yaw_end-yaw_start;
+    // CW case 
+    if (relative_yaw > 0){
+        if(relative_yaw > DEG2RAD(180)){
+            relative_yaw -= DEG2RAD(360);
+        }
+    } 
+    // CCW case
+    else{
+        if(relative_yaw < -DEG2RAD(180)){
+            relative_yaw += DEG2RAD(360);
+        }
+    }
+
+    return relative_yaw;
 }
+void steer(double &angular, double &curr_yaw, double desired_angle, bool &done)
+{
+    // CW angles are negative from 0 to -180
+    // desired_angle IN RAD
+    if (desired_angle == 0)
+    {
+        ROS_ERROR("Must specifiy an angle not equal to zero");
+    }
+    static double accu_yaw = 0;
+    static double prev_yaw = 1000;
+
+    if (done)
+    {
+        ROS_INFO(" Steering DONE");
+        angular = 0;
+        accu_yaw = 0;
+        prev_yaw = curr_yaw;
+        return;
+    }
+
+    
+    accu_yaw += std::abs(yawSmallestDifference(curr_yaw, prev_yaw));
+    ROS_INFO("accumulated yaw %f", accu_yaw);
+    prev_yaw = curr_yaw;
+
+    if (std::abs(accu_yaw) > std::abs(desired_angle))
+    {
+        angular = 0; // within threshold, stop steering
+        done = true;
+    }
+    // CW (0 to -180)
+
+    if (desired_angle > 0)
+    {
+        angular = 0.5;
+    }
+    // CCW case
+    else if (desired_angle < 0)
+    {
+        angular = -0.5;
+    }
+    else
+    {
+        // desired_angle == 0, do nothing
+    }
+}
+
+double desiredAbsoluteYaw(double &yaw, double &desired_angle){
+    // CW angles are negative from 0 to -180 IN DEGREES
+
+    double absolute_desired_yaw;
+
+    absolute_desired_yaw = yaw + desired_angle;
+    // CW case 
+    if (desired_angle < 0){
+        if(absolute_desired_yaw < -180){
+            absolute_desired_yaw += 360;
+        }
+    } 
+    // CCW case
+    else{
+        if(absolute_desired_yaw > 180){
+            absolute_desired_yaw -= 360;
+        }
+    }
+
+    return absolute_desired_yaw;
+}
+
 
 
 int main(int argc, char **argv)
@@ -188,7 +277,7 @@ int main(int argc, char **argv)
     start = std::chrono::system_clock::now();
     uint64_t secondsElapsed = 0;
 
-    float angular = 0.0;
+    double angular = 0.0;
     float linear = 0.0;
     //pointers to the laser distances
     float *ptr_LeftLaserDist = &LeftLaserDist;
@@ -196,16 +285,36 @@ int main(int argc, char **argv)
     float *ptr_RightLaserDist = &RightLaserDist;
 
 
-
+    bool done = false;
+    int order = 1 ;
     while (ros::ok() && secondsElapsed <= 480)
     {
         ros::spinOnce();
         //fill with your code
 
+        if (secondsElapsed > 1 && order == 1)
+        { // sems like it needs a bit of time to set up correct values of yaw
 
+            steer(angular, yaw, DEG2RAD(-36), done);
+            if (done)
+            {
+                order = 2;
+                done = false;
+            }
+        }
+        else if (order == 2)
+        {
+            steer(angular, yaw, DEG2RAD(365), done);
+            if (done)
+            {
+                order = 2;
+                done = false;
+                angular = 0;
+            }
+        }
 
         //ROS_INFO("Postion: (%f, %f) Orientation: %f degrees Range: %f", posX, posY, RAD2DEG(yaw), minLaserDist);
-        //ROS_INFO(" Orientation deg: %f, rad: %f", RAD2DEG(yaw), yaw);
+        ROS_INFO(" Orientation deg: %f, rad: %f", RAD2DEG(yaw), yaw);
 
         ROS_INFO("MidLaserDist: %f, RightLaserDist: %f, LeftLaserDist: %f, MinLaserDist: %f, MaxLaserDist: %f ", MidLaserDist, LeftLaserDist, RightLaserDist, minLaserDist, maxLaserDist);
         bool any_bumper_pressed = false;
@@ -213,8 +322,6 @@ int main(int argc, char **argv)
         {
             any_bumper_pressed |= (bumper[b_idx] == kobuki_msgs::BumperEvent::PRESSED);
         }
-
-                    
 
 
 
