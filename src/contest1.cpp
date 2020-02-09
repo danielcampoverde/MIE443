@@ -16,10 +16,12 @@
 #define RAD2DEG(rad) ((rad)*180. / M_PI)
 #define DEG2RAD(deg) ((deg)*M_PI / 180.)
 
-float angular = 0.0;
-float liner = 0.0;
-float posX = 0.0, posY = 0.0;
+#define STEER_ANGULAR 0.5
+
+double angular = 0.0;
+double linear = 0.0;
 double yaw = 0.0;
+float posX = 0.0, posY = 0.0;
 uint8_t bumper[3] = {kobuki_msgs::BumperEvent::RELEASED, kobuki_msgs::BumperEvent::RELEASED, kobuki_msgs::BumperEvent::RELEASED};
 uint8_t leftState = bumper[kobuki_msgs::BumperEvent::LEFT];
 
@@ -210,14 +212,10 @@ void steer(double &angular, double &curr_yaw, double desired_angle, bool &done)
         ROS_ERROR("Must specifiy an angle not equal to zero");
     }
     static double accu_yaw = 0;
-    static double prev_yaw = 1000;
+    static double prev_yaw = 1000; // inf
 
     if (done)
     {
-        ROS_INFO(" Steering DONE");
-        angular = 0;
-        accu_yaw = 0;
-        prev_yaw = curr_yaw;
         return;
     }
 
@@ -227,19 +225,23 @@ void steer(double &angular, double &curr_yaw, double desired_angle, bool &done)
 
     if (std::abs(accu_yaw) > std::abs(desired_angle))
     {
-        angular = 0; // within threshold, stop steering
+        ROS_INFO(" Steering DONE");
+        angular = 0;
+        accu_yaw = 0;
+        prev_yaw = 1000;
         done = true;
+        return;
     }
     // CW (0 to -180)
 
     if (desired_angle > 0)
     {
-        angular = 0.5;
+        angular = STEER_ANGULAR;
     }
     // CCW case
     else if (desired_angle < 0)
     {
-        angular = -0.5;
+        angular = -STEER_ANGULAR;
     }
     else
     {
@@ -276,7 +278,8 @@ double desiredAbsoluteYaw(double &yaw, double &desired_angle)
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "image_listener");
+
+     ros::init(argc, argv, "image_listener");
     ros::NodeHandle nh;
 
     ros::Subscriber bumper_sub = nh.subscribe("mobile_base/events/bumper", 10, &bumperCallback);
@@ -293,40 +296,55 @@ int main(int argc, char **argv)
     start = std::chrono::system_clock::now();
     uint64_t secondsElapsed = 0;
 
-    double angular = 0.0;
-    float linear = 0.0;
+   
     //pointers to the laser distances
     float *ptr_LeftLaserDist = &LeftLaserDist;
     float *ptr_MidLaserDist = &MidLaserDist;
     float *ptr_RightLaserDist = &RightLaserDist;
 
     bool done = false;
-    int order = 1;
+    int state = 1 ;
     while (ros::ok() && secondsElapsed <= 480)
     {
         ros::spinOnce();
         //fill with your code
 
-        // if (secondsElapsed > 1 && order == 1)
-        // { // sems like it needs a bit of time to set up correct values of yaw
+        switch (state)
+        {
+        case 1: // wait ros for init
+            if (secondsElapsed > 0.1)
+            {
+                state = 2;
+            }
+            break; // USE break if want to skip to the next while loop iteration
+                   // next statements continue to execute if there is no break
+        case 2:    // turn 360 degrees
+            if (!done)
+            {
+                steer(angular, yaw, DEG2RAD(180), done);
+            }
+            if (done)
+            {
+                state = 3;
+                done = false;
+            }
+            break;
+        case 3: // make a small turn after 360 is done
+            steer(angular, yaw, DEG2RAD(-45), done);
+            if (done)
+            {
+                state = -1;
+                done = false;
+            }
+            break;
+        case -1:
+        ROS_INFO("waiting"); 
+            break;// do nothing
+        default:
+            ROS_ERROR("Invalid State");  
+            break;      
+        }
 
-        //     steer(angular, yaw, DEG2RAD(-36), done);
-        //     if (done)
-        //     {
-        //         order = 2;
-        //         done = false;
-        //     }
-        // }
-        // else if (order == 2)
-        // {
-        //     steer(angular, yaw, DEG2RAD(365), done);
-        //     if (done)
-        //     {
-        //         order = 2;
-        //         done = false;
-        //         angular = 0;
-        //     }
-        // }
 
         //ROS_INFO("Postion: (%f, %f) Orientation: %f degrees Range: %f", posX, posY, RAD2DEG(yaw), minLaserDist);
         ROS_INFO(" Orientation deg: %f, rad: %f", RAD2DEG(yaw), yaw);
