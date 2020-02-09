@@ -210,10 +210,14 @@ void steer(double &angular, double &curr_yaw, double desired_angle, bool &done)
 
     if (done)
     {
+        if (accu_yaw != 0){ // done has been forced, reset variables
+            angular = 0;
+            accu_yaw = 0;
+            prev_yaw = 1000;
+        }
         return;
     }
 
-    
     accu_yaw += std::abs(yawSmallestDifference(curr_yaw, prev_yaw));
     ROS_INFO("accumulated yaw %f", accu_yaw);
     prev_yaw = curr_yaw;
