@@ -22,6 +22,9 @@ double angular = 0.0;
 double linear = 0.0;
 double yaw = 0.0;
 float posX = 0.0, posY = 0.0;
+
+double lastRightDist = 0.0;
+
 uint8_t bumper[3] = {kobuki_msgs::BumperEvent::RELEASED, kobuki_msgs::BumperEvent::RELEASED, kobuki_msgs::BumperEvent::RELEASED};
 uint8_t leftState = bumper[kobuki_msgs::BumperEvent::LEFT];
 
@@ -144,7 +147,7 @@ void turnAround(float *yaw, float *angular, float *linear)
     }
 }
 
-void goRobot(float &linear, float &angular)
+void goRobot(double &linear, double &angular)
 {
     angular = 0.0;
 
@@ -158,7 +161,7 @@ void goRobot(float &linear, float &angular)
         ROS_INFO("Going Straight: Wall closer");
         linear = 0.15;
     }
-    else if (MidLaserDist > 0.8 && MidLaserDist < 3)
+    else if (MidLaserDist > 0.8)
     {
         ROS_INFO("Going Straight");
         linear = 0.2;
@@ -166,10 +169,11 @@ void goRobot(float &linear, float &angular)
     else
     {
         linear = 0.0;
+        angular = STEER_ANGULAR;
     }
 }
 
-void stopRobot(float &linear, float &angular)
+void stopRobot(double &linear, double &angular)
 {
     linear = 0.0;
     angular = 0.0;
@@ -284,7 +288,7 @@ double desiredAbsoluteYaw(double &yaw, double &desired_angle)
 int main(int argc, char **argv)
 {
 
-     ros::init(argc, argv, "image_listener");
+    ros::init(argc, argv, "image_listener");
     ros::NodeHandle nh;
 
     ros::Subscriber bumper_sub = nh.subscribe("mobile_base/events/bumper", 10, &bumperCallback);
@@ -301,18 +305,31 @@ int main(int argc, char **argv)
     start = std::chrono::system_clock::now();
     uint64_t secondsElapsed = 0;
 
-   
     //pointers to the laser distances
     float *ptr_LeftLaserDist = &LeftLaserDist;
     float *ptr_MidLaserDist = &MidLaserDist;
     float *ptr_RightLaserDist = &RightLaserDist;
 
     bool done = false;
-    int state = 1 ;
+    int state = 1;
+    double angle = 30;
+    int wall_detected = 0;
+    double time_stamp = 0;
+
     while (ros::ok() && secondsElapsed <= 480)
     {
         ros::spinOnce();
         //fill with your code
+
+        //ROS_INFO("Postion: (%f, %f) Orientation: %f degrees Range: %f", posX, posY, RAD2DEG(yaw), minLaserDist);
+        // ROS_INFO(" Orientation deg: %f, rad: %f", RAD2DEG(yaw), yaw);
+
+        ROS_INFO("MidLaserDist: %f, RightLaserDist: %f, LeftLaserDist: %f, MinLaserDist: %f, MaxLaserDist: %f ", MidLaserDist, LeftLaserDist, RightLaserDist, minLaserDist, maxLaserDist);
+        bool any_bumper_pressed = false;
+        for (uint32_t b_idx = 0; b_idx < N_BUMPER; ++b_idx)
+        {
+            any_bumper_pressed |= (bumper[b_idx] == kobuki_msgs::BumperEvent::PRESSED);
+        }
 
         switch (state)
         {
@@ -326,78 +343,88 @@ int main(int argc, char **argv)
         case 2:    // turn 360 degrees
             if (!done)
             {
-                steer(angular, yaw, DEG2RAD(180), done);
+                steer(angular, yaw, DEG2RAD(360), done); //change back to 360
             }
             if (done)
             {
                 state = 3;
                 done = false;
+                lastRightDist = RightLaserDist;
             }
             break;
-        case 3: // make a small turn after 360 is done
-            steer(angular, yaw, DEG2RAD(-45), done);
-            if (done)
+        case 3: // Select movement
+            if (any_bumper_pressed)
+            {
+                ROS_INFO("BUMPER PRESSED");
+                stopRobot(linear, angular);
+                state = 6;
+            }
+            else if (std::isnan(RightLaserDist)) // Error in Right Laser -> Turn Left
+            {
+                angle = 30;
+                stopRobot(linear, angular);
+                state = 5;
+            }
+            else if (std::isnan(LeftLaserDist)) // Error in Left Laser -> Turn Right
+            {
+                angle = -30;
+                stopRobot(linear, angular);
+                state = 5;
+            }
+            else if (MidLaserDist > 0.85 && RightLaserDist > 0.9 && LeftLaserDist > 0.9) // Go Straight
+            {
+                state = 4;
+            }
+            else if (0) // GET CLOSER TO WALL ** FIX ME
+            {
+                angle = -15;
+                state = 5;
+            }
+            else if (MidLaserDist < 0.6 || RightLaserDist < 0.7) // Turning Left with Right Wall as REF
+            {
+                angle = 30;
+                stopRobot(linear, angular);
+                state = 5;
+            }
+
+            else
             {
                 state = -1;
-                done = false;
             }
+
             break;
-        case -1:
-        ROS_INFO("waiting"); 
-            break;// do nothing
-        default:
-            ROS_ERROR("Invalid State");  
-            break;      
-        }
-
-
-        //ROS_INFO("Postion: (%f, %f) Orientation: %f degrees Range: %f", posX, posY, RAD2DEG(yaw), minLaserDist);
-        ROS_INFO(" Orientation deg: %f, rad: %f", RAD2DEG(yaw), yaw);
-
-        ROS_INFO("MidLaserDist: %f, RightLaserDist: %f, LeftLaserDist: %f, MinLaserDist: %f, MaxLaserDist: %f ", MidLaserDist, LeftLaserDist, RightLaserDist, minLaserDist, maxLaserDist);
-        bool any_bumper_pressed = false;
-        for (uint32_t b_idx = 0; b_idx < N_BUMPER; ++b_idx)
-        {
-            any_bumper_pressed |= (bumper[b_idx] == kobuki_msgs::BumperEvent::PRESSED);
-        }
-
-        if (!any_bumper_pressed)
-        {
-            if (secondsElapsed > 1 && order == 1)
+        case 4: //Go Straight
+            if (!done)
             {
                 goRobot(linear, angular);
-                if (RightLaserDist > 0.6 && RightLaserDist < 0.8) // Moving close to wall -> Small wall alignment
-                {
-                    steer(angular, yaw, DEG2RAD(5), done);
-                    goRobot(linear, angular);
-                }
-                else if (RightLaserDist > 0.55 && RightLaserDist < 0.6) // Moving closer -> wall alignment
-                {
-                    steer(angular, yaw, DEG2RAD(30), done);
-                    goRobot(linear, angular);
-                }
-                else if (RightLaserDist > 0.45 && RightLaserDist < 0.0) // Moving too close -> stop and turn!
-                {
-                    stopRobot(linear, angular);
-                    steer(angular, yaw, DEG2RAD(45), done);
-                    goRobot(linear, angular);
-                }
-                else if (RightLaserDist > 0.8 && RightLaserDist < 1.3) //Moway away from wall -> wall alignment
-                {
-                    steer(angular, yaw, DEG2RAD(-5), done);
-                    goRobot(linear, angular);
-                }
-                else if (RightLaserDist > 1.3)
-                {
-                    goRobot(linear, angular);
-                }
+                state = 3;
             }
-        }
-        else
-        {
-            linear = 0.0;
-            angular = 0.0;
-            // Go Back
+
+            break;
+        case 5: // turn
+
+            if (!done)
+            {
+                steer(angular, yaw, DEG2RAD(angle), done);
+            }
+            if (done)
+            {
+                state = 3;
+                done = false;
+                linear = 0.0;
+            }
+            break;
+        case 6: //BUMPER PRESSED
+            linear = -0.15;
+            angular = STEER_ANGULAR * 2;
+            state = 3;
+            break;
+        case -1:
+            ROS_INFO("waiting");
+            break; // do nothing
+        default:
+            ROS_ERROR("Invalid State");
+            break;
         }
 
         //The last thing to do is to update the timer.
