@@ -216,6 +216,11 @@ void steer(double &angular, double &curr_yaw, double desired_angle, bool &done)
 
     if (done)
     {
+        if (accu_yaw != 0){ // done has been forced, reset variables
+            angular = 0;
+            accu_yaw = 0;
+            prev_yaw = 1000;
+        }
         return;
     }
 
