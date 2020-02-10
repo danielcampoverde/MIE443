@@ -359,7 +359,7 @@ int main(int argc, char **argv)
                 stopRobot(linear, angular);
                 state = 6;
             }
-            else if (std::isnan(RightLaserDist)) // Error in Right Laser -> Turn Left
+            else if (std::isnan(MidLaserDist) || std::isnan(RightLaserDist)) // Error in Right Laser -> Turn Left
             {
                 angle = 30;
                 stopRobot(linear, angular);
@@ -371,7 +371,7 @@ int main(int argc, char **argv)
                 stopRobot(linear, angular);
                 state = 5;
             }
-            else if (MidLaserDist > 0.85 && RightLaserDist > 0.9 && LeftLaserDist > 0.9) // Go Straight
+            else if (MidLaserDist > 0.7) // Go Straight
             {
                 state = 4;
             }
@@ -380,7 +380,7 @@ int main(int argc, char **argv)
                 angle = -15;
                 state = 5;
             }
-            else if (MidLaserDist < 0.6 || RightLaserDist < 0.7) // Turning Left with Right Wall as REF
+            else if (MidLaserDist <= 0.7 || RightLaserDist < 0.7) // Turning Left with Right Wall as REF
             {
                 angle = 30;
                 stopRobot(linear, angular);
