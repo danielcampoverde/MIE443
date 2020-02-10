@@ -1,0 +1,7 @@
+roslaunch turtlebot_bringup minimal.launch
+
+roslaunch mie443_contest1 gmapping.launch 
+
+roslaunch turtlebot_rviz_launchers view_navigation.launch
+
+rosrun mie443_contest1 contest1 

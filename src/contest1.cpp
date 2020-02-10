@@ -159,12 +159,12 @@ void goRobot(double &linear, double &angular)
     else if (MidLaserDist <= 0.8 && MidLaserDist >= 0.5)
     {
         ROS_INFO("Going Straight: Wall closer");
-        linear = 0.15;
+        linear = 0.1;
     }
     else if (MidLaserDist > 0.8)
     {
         ROS_INFO("Going Straight");
-        linear = 0.2;
+        linear = 0.15;
     }
     else
     {
@@ -312,7 +312,9 @@ int main(int argc, char **argv)
 
     bool done = false;
     int state = 1;
-    double angle = 30;
+    double angle = 0;
+    double rAngle = 30;
+    double lAngle = -15;
     int wall_detected = 0;
     double time_stamp = 0;
 
@@ -361,28 +363,28 @@ int main(int argc, char **argv)
             }
             else if (std::isnan(MidLaserDist) || std::isnan(RightLaserDist)) // Error in Right Laser -> Turn Left
             {
-                angle = 30;
+                angle = rAngle;
                 stopRobot(linear, angular);
                 state = 5;
             }
             else if (std::isnan(LeftLaserDist)) // Error in Left Laser -> Turn Right
             {
-                angle = -30;
+                angle = lAngle;
                 stopRobot(linear, angular);
                 state = 5;
             }
-            else if (MidLaserDist > 0.7) // Go Straight
+            else if (MidLaserDist > 0.8) // Go Straight
             {
                 state = 4;
             }
             else if (0) // GET CLOSER TO WALL ** FIX ME
             {
-                angle = -15;
+                angle = lAngle;
                 state = 5;
             }
-            else if (MidLaserDist <= 0.7 || RightLaserDist < 0.7) // Turning Left with Right Wall as REF
+            else if (MidLaserDist <= 0.8 || RightLaserDist < 1) // Turning Left with Right Wall as REF
             {
-                angle = 30;
+                angle = rAngle;
                 stopRobot(linear, angular);
                 state = 5;
             }
