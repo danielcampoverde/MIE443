@@ -367,7 +367,7 @@ float sweepDist(int *k, float *posX_array, float *posY_array, float *posX, float
 void goStraight(float *ptr_angular, float angular_speed, float *ptr_linear, float linear_speed)
 {
     *ptr_linear = linear_speed;
-    *ptr_angular = angular_speed;
+    //*ptr_angular = angular_speed;
 }
 
 double yawSmallestDifference(double yaw_end, double yaw_start)
@@ -453,6 +453,31 @@ void steer(float &angular, float &curr_yaw, double desired_angle, bool &done)
     }
 }
 
+#define K_GO_STRAIGHT 500 // 500 seems to be too much but still stable, 250 might not be enough
+void goStraightFeedback(float *angular, float curr_yaw, float ref_angle)
+{
+    // P controller 
+    float error = yawSmallestDifference(curr_yaw, ref_angle);
+
+    if (std::abs(error) > DEG2RAD(0.5)) // error threshold, smaller values considered as noise and ignored
+    {
+        if (error > 0) // CCW deviation
+        {
+            *angular = -K_GO_STRAIGHT * std::abs(DEG2RAD(error));
+        }
+        else
+        {
+            *angular = K_GO_STRAIGHT * std::abs(DEG2RAD(error));
+        }
+        ROS_INFO("Feedback control turning");
+    }
+    else
+    { // robot going straight, no change on angular vel
+        *angular = 0;
+    }
+    ROS_INFO("Feedback control ENABLED! Error is: %f degrees", RAD2DEG(error));
+}
+
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "image_listener");
@@ -481,6 +506,9 @@ int main(int argc, char **argv)
     }
     map[9][9] = 1;
 
+    int state = 0; // 0 - do nothing, 1 - save ref_angle, 2 - feedback control
+    float ref_angle = 0;
+
     while (ros::ok() && secondsElapsed <= 480)
     {
         ros::spinOnce();
@@ -506,9 +534,21 @@ int main(int argc, char **argv)
         {
             initial_Sweep(&yaw, &angular, &linear, &time, &MidLaserDist, &minLaserDist);
             ROS_INFO("Initial Sweeping");
+            check_first_revolve = true;
         }
         else if (check_first_revolve)
         {
+            if (state == 1){
+                // save ref_angle
+                ref_angle = yaw;
+                state = 2;
+                
+            }
+            if (state == 2){
+                goStraightFeedback( &angular, yaw, ref_angle);
+            }
+            
+            ROS_INFO("Ref yaw saved: %f, curr yaw %f", ref_angle, yaw);
             // if (sweeping || ((time > 110.0 && time < 115.0) || (time > 180.0 && time < 185.0) || (time > 260.0 && time < 265.0) || (time > 340.0 && time < 345.0) || (time > 440.0 && time < 445.0)))
             // {
             //     sweep(&yaw, &angular, &linear, &time, &posX, &posY, posX_array, posY_array, &k);
@@ -523,6 +563,7 @@ int main(int argc, char **argv)
                 sweep(&yaw, &angular, &linear, &time, &posX, &posY, posX_array, posY_array, &k);
                 ROS_INFO("Sweeping"); // linear = 0.0;
                 sweep_check = true;
+                state = 0; // reset state
             }
             else
             {
@@ -531,21 +572,26 @@ int main(int argc, char **argv)
                 {
                     goStraight(&angular, 0.0, &linear, -0.1);
                     ROS_INFO("Backing Up");
+                    state = 0; // reset state
                 }
                 else if (!any_bumper_pressed && MidLaserDist >= 1.8 && minLaserDist >= 0.8)
                 {
                     ROS_INFO("Going Straight Fast");
                     goStraight(&angular, 0.0, &linear, 0.22); //fast
+                    if (state != 2) state = 1; 
                 }
                 else if (!any_bumper_pressed && MidLaserDist >= 1.4 && minLaserDist >= 0.7)
                 {
                     goStraight(&angular, 0.0, &linear, 0.18); //slow
                     ROS_INFO("Going Straight Slow");
+                    if (state != 2) state = 1;
+
                 }
                 else if (!any_bumper_pressed && MidLaserDist >= 1.0 && minLaserDist >= 0.7)
                 {
                     goStraight(&angular, 0.0, &linear, 0.15); //really slow
                     ROS_INFO("Going Straight Really Slow");
+                    if (state != 2) state = 1;
                 }
 
                 else if (!compare_done || (MidLaserDist < 1.82)) //if (!pass)
@@ -553,6 +599,7 @@ int main(int argc, char **argv)
                     compare_done = false;
                     compare_Turn(&yaw, &angular, &linear, &MidLaserDist, &LTurn, &RTurn);
                     ROS_INFO("Compare Turn Function");
+                    state = 0; // reset state
                 }
             }
         }
