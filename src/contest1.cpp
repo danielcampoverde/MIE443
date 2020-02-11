@@ -440,7 +440,7 @@ int main(int argc, char **argv)
                         vel_pub.publish(vel);
                         goStraight(&angular, -M_PI / 9.0, &linear, 0.0);
                     }
-                // }
+                 }
                 
                 else if((left_avg_LaserDist<0.8 && right_avg_LaserDist<0.6 && minLaserDist<0.75 && minLaserDist>0.55) && MidLaserDist>0.8){
                     goStraight(&angular, 0.0, &linear, 0.1); //really slow
