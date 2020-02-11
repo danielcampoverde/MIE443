@@ -302,81 +302,84 @@ void goStraight(float *ptr_angular, float angular_speed, float *ptr_linear, floa
     *ptr_linear = linear_speed;
     *ptr_angular = angular_speed;
 }
+
 double yawSmallestDifference(double yaw_end, double yaw_start) {
-        
-    if (yaw_start == 1000){
-        return 0.0;
-    }
-
-    double relative_yaw = yaw_end-yaw_start;
-    // CW case 
-    if (relative_yaw > 0){
-        if(relative_yaw > DEG2RAD(180)){
-            relative_yaw -= DEG2RAD(360);
-        }
-    } 
-    // CCW case
-    else{
-        if(relative_yaw < -DEG2RAD(180)){
-            relative_yaw += DEG2RAD(360);
-        }
-    }
-
-    return relative_yaw;
+      
+   if (yaw_start == 1000){
+       return 0.0;
+   }
+ 
+   double relative_yaw = yaw_end-yaw_start;
+   // CW case
+   if (relative_yaw > 0){
+       if(relative_yaw > DEG2RAD(180)){
+           relative_yaw -= DEG2RAD(360);
+       }
+   }
+   // CCW case
+   else{
+       if(relative_yaw < -DEG2RAD(180)){
+           relative_yaw += DEG2RAD(360);
+       }
+   }
+ 
+   return relative_yaw;
 }
-
-#define STEER_ANGULAR 0.3
-
+ 
+#define STEER_ANGULAR 0.2
+ 
 void steer(float &angular, float &curr_yaw, double desired_angle, bool &done)
 {
-    // CW angles are negative from 0 to -180
-    // desired_angle IN RAD
-    if (desired_angle == 0)
-    {
-        ROS_ERROR("Must specifiy an angle not equal to zero");
-    }
-    static double accu_yaw = 0;
-    static double prev_yaw = 1000; // inf
-
-    if (done)
-    {
-        if (accu_yaw != 0){ // done has been forced, reset variables
-            angular = 0;
-            accu_yaw = 0;
-            prev_yaw = 1000;
-        }
-        return;
-    }
-
-    accu_yaw += std::abs(yawSmallestDifference(curr_yaw, prev_yaw));
-    ROS_INFO("accumulated yaw %f", accu_yaw);
-    prev_yaw = curr_yaw;
-
-    if (std::abs(accu_yaw) > std::abs(desired_angle))
-    {
-        ROS_INFO(" Steering DONE");
-        angular = 0;
-        accu_yaw = 0;
-        prev_yaw = 1000;
-        done = true;
-        return;
-    }
-    // CW (0 to -180)
-
-    if (desired_angle > 0)
-    {
-        angular = STEER_ANGULAR;
-    }
-    // CCW case
-    else if (desired_angle < 0)
-    {
-        angular = -STEER_ANGULAR;
-    }
-    else
-    {
-        // desired_angle == 0, do nothing
-    }
+   // CW angles are negative from 0 to -180
+   // desired_angle IN RAD
+   if (desired_angle == 0)
+   {
+       ROS_ERROR("Must specifiy an angle not equal to zero");
+   }
+   static double accu_yaw = 0;
+   static double prev_yaw = 1000; // inf
+ 
+   if (done)
+   {
+       if (accu_yaw != 0){ // done has been forced, reset variables
+           angular = 0;
+           accu_yaw = 0;
+           prev_yaw = 1000;
+       }
+       return;
+   }
+ 
+   accu_yaw += std::abs(yawSmallestDifference(curr_yaw, prev_yaw));
+   ROS_INFO("accumulated yaw %f", accu_yaw);
+   prev_yaw = curr_yaw;
+ 
+   if (std::abs(accu_yaw) > std::abs(desired_angle))
+   {
+       ROS_INFO(" Steering DONE");
+       angular = 0;
+       accu_yaw = 0;
+       prev_yaw = 1000;
+       done = true;
+       return;
+   }
+   // CW (0 to -180)
+ 
+   if (desired_angle > 0)
+   {
+       angular = STEER_ANGULAR;
+   }
+   // CCW case
+   else if (desired_angle < 0)
+   {
+       angular = -STEER_ANGULAR;
+   }
+   else
+   {
+       // desired_angle == 0, do nothing
+   }
 }
+
+
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "image_listener");
@@ -395,8 +398,6 @@ int main(int argc, char **argv)
     std::chrono::time_point<std::chrono::system_clock> start;
     start = std::chrono::system_clock::now();
     uint64_t secondsElapsed = 0;
-
-    bool done360 = false;
 
     while (ros::ok() && secondsElapsed <= 480)
     {
@@ -418,12 +419,12 @@ int main(int argc, char **argv)
 
         float current_mid_dist = MidLaserDist;
 
-        if (!done360)
+        if (time < 10.0 || !check_first_revolve)
         {
-            if (secondsElapsed > 0.1) steer(angular, yaw, DEG2RAD(360), done360); // seems like ros needs a bit of time to send valid yaw values
+            initial_Sweep(&yaw, &angular, &linear, &time, &MidLaserDist, &minLaserDist);
             ROS_INFO("Initial Sweeping");
         }
-        else
+        else if (check_first_revolve)
         {
             if (sweeping || ((time > 110.0 && time < 115.0) || (time > 180.0 && time < 185.0) || (time > 260.0 && time < 265.0) || (time > 340.0 && time < 345.0) || (time > 440.0 && time < 445.0)))
             {
@@ -442,7 +443,7 @@ int main(int argc, char **argv)
                 {
                     ROS_INFO("Going Straight Fast");
                     if(right_avg_LaserDist<0.6){
-                        goStraight(&angular, M_PI/15., &linear, 0.2);
+                        goStraight(&angular, 0, &linear, 0.2);
 
                     }
                     else{
