@@ -27,7 +27,7 @@ float final_ori_max = 0.0;
 float final_ori_min = 0.0;
 double current_time;
 double previous_time = 0;
-
+int map[20][20] ;
 uint8_t bumper[3] = {kobuki_msgs::BumperEvent::RELEASED, kobuki_msgs::BumperEvent::RELEASED, kobuki_msgs::BumperEvent::RELEASED};
 uint8_t leftState = bumper[kobuki_msgs::BumperEvent::LEFT];
 int32_t nLasers = 0, desiredNLasers = 0, desiredAngle = 18;
@@ -150,12 +150,12 @@ bool sweep(float *yaw, float *angular, float *linear, double *time)
     else if ((*time - current_time) < 6.0)
     {
         *linear = 0.0;
-        *angular = M_PI / 12.0;
+        *angular = M_PI / 9.0;
         ROS_INFO("Sweep initializing");
     }
     else if (abs(int(RAD2DEG(*yaw)) - int(current_yaw))>=3)//int(RAD2DEG(*yaw)) != int(current_yaw
     {
-        *angular = M_PI / 12.0;
+        *angular = M_PI / 9.0;
         *linear = 0.0;
         ROS_INFO("Sweep finishing, yaw:%f, current yaw:%f", RAD2DEG(*yaw), current_yaw);
     }
@@ -205,7 +205,7 @@ void initial_Sweep(float *yaw, float *angular, float *linear, double *time, floa
         first_sweep = true;
         if ((abs(int(RAD2DEG(*yaw)) - int(maxYaw)) >= 3))//(int(RAD2DEG(*yaw)) != int(maxYaw)) && 
         {
-            *angular = M_PI / 7.0;
+            *angular = M_PI / 9.0;
             *linear = 0.0;
             ROS_INFO("360 done, Sweeping to maxYaw, yaw:%f, maxYaw:%f", RAD2DEG(*yaw), maxYaw);
         }
@@ -303,82 +303,36 @@ void goStraight(float *ptr_angular, float angular_speed, float *ptr_linear, floa
     *ptr_angular = angular_speed;
 }
 
-double yawSmallestDifference(double yaw_end, double yaw_start) {
-      
-   if (yaw_start == 1000){
-       return 0.0;
-   }
- 
-   double relative_yaw = yaw_end-yaw_start;
-   // CW case
-   if (relative_yaw > 0){
-       if(relative_yaw > DEG2RAD(180)){
-           relative_yaw -= DEG2RAD(360);
-       }
-   }
-   // CCW case
-   else{
-       if(relative_yaw < -DEG2RAD(180)){
-           relative_yaw += DEG2RAD(360);
-       }
-   }
- 
-   return relative_yaw;
-}
- 
-#define STEER_ANGULAR 0.2
- 
-void steer(float &angular, float &curr_yaw, double desired_angle, bool &done)
+void updatepos ()
 {
-   // CW angles are negative from 0 to -180
-   // desired_angle IN RAD
-   if (desired_angle == 0)
-   {
-       ROS_ERROR("Must specifiy an angle not equal to zero");
-   }
-   static double accu_yaw = 0;
-   static double prev_yaw = 1000; // inf
- 
-   if (done)
-   {
-       if (accu_yaw != 0){ // done has been forced, reset variables
-           angular = 0;
-           accu_yaw = 0;
-           prev_yaw = 1000;
-       }
-       return;
-   }
- 
-   accu_yaw += std::abs(yawSmallestDifference(curr_yaw, prev_yaw));
-   ROS_INFO("accumulated yaw %f", accu_yaw);
-   prev_yaw = curr_yaw;
- 
-   if (std::abs(accu_yaw) > std::abs(desired_angle))
-   {
-       ROS_INFO(" Steering DONE");
-       angular = 0;
-       accu_yaw = 0;
-       prev_yaw = 1000;
-       done = true;
-       return;
-   }
-   // CW (0 to -180)
- 
-   if (desired_angle > 0)
-   {
-       angular = STEER_ANGULAR;
-   }
-   // CCW case
-   else if (desired_angle < 0)
-   {
-       angular = -STEER_ANGULAR;
-   }
-   else
-   {
-       // desired_angle == 0, do nothing
-   }
-}
 
+     int x = (int (posX*100))/50;
+     int y= (int (posY*100))/50;
+
+
+        map[9+x][9+y]= 1; 
+
+      if (sweeping)
+            {
+         
+            for (int i=0; i<= 2 ; i++)
+            { for (int j=0 ; j<=2; j++)
+            {
+             map[9+x+i-1][9+y+j-1]=1 ;
+       
+            }
+            
+            }
+            }
+      
+     for (int i=0; i<20 ; i++)
+     { for (int j =0 ; j<20; j++)
+      {
+          std::cout << map[i][j] <<" ";
+      }
+      std::cout << std::endl ; 
+     }
+}
 
 int main(int argc, char **argv)
 {
@@ -398,6 +352,14 @@ int main(int argc, char **argv)
     std::chrono::time_point<std::chrono::system_clock> start;
     start = std::chrono::system_clock::now();
     uint64_t secondsElapsed = 0;
+
+     for (int i=0; i<20 ; i++)
+     { for (int j =0 ; j<20; j++)
+      {
+          map[i][j]= 0; 
+      }
+     }
+     map[9][9]=1;
 
     while (ros::ok() && secondsElapsed <= 480)
     {
@@ -430,6 +392,7 @@ int main(int argc, char **argv)
             {
                 sweep(&yaw, &angular, &linear, &time);
                 ROS_INFO("Sweeping"); // linear = 0.0;
+                 sweep_check =true; 
             }
             else
             {
@@ -439,33 +402,19 @@ int main(int argc, char **argv)
                     goStraight(&angular, 0.0, &linear, -0.1);
                     ROS_INFO("Backing Up");
                 }
-                else if (!any_bumper_pressed && MidLaserDist >= 1.5 && minLaserDist >= 1.1)
+                else if (!any_bumper_pressed && MidLaserDist >= 1.5 && minLaserDist >= 0.7)
                 {
                     ROS_INFO("Going Straight Fast");
-                    if(right_avg_LaserDist<0.6){
-                        goStraight(&angular, 0, &linear, 0.2);
-
-                    }
-                    else{
-                    goStraight(&angular, 0.0, &linear, 0.2); //fast
-                    
-                    }
+                   goStraight(&angular, 0.0, &linear, 0.2); //fast
                 }
-                else if (!any_bumper_pressed && MidLaserDist >= 1.2 && minLaserDist >= 0.9)
+                else if (!any_bumper_pressed && MidLaserDist >= 1.2 && minLaserDist >= 0.7)
                 {                    
-                    if(right_avg_LaserDist<0.6){
-                        goStraight(&angular, M_PI/10., &linear, 0.18);
-
-                    }
-                    else{
-                    goStraight(&angular, 0.0, &linear, 0.18); //slow
-                    
-                    }
+                     goStraight(&angular, 0.0, &linear, 0.15); //slow
                     ROS_INFO("Going Straight Slow");
                 }
-                else if (!any_bumper_pressed && MidLaserDist >= 0.95 && minLaserDist >= 0.775)
+                else if (!any_bumper_pressed && MidLaserDist >= 0.8 && minLaserDist >= 0.7)
                 {
-                    goStraight(&angular, 0.0, &linear, 0.15); //really slow
+                    goStraight(&angular, 0.0, &linear, 0.1); //really slow
                     ROS_INFO("Going Straight Really Slow");
                 }
                 // else if (!any_bumper_pressed && MidLaserDist < 0.8 && ((left_avg_LaserDist)>1.4)&& LeftLaserDist>1.2 && right_avg_LaserDist<0.8)
@@ -480,17 +429,17 @@ int main(int argc, char **argv)
                 //         goStraight(&angular, M_PI / 9.0, &linear, 0.0); //turn left
                 //     }
                 // }
-                // else if (!any_bumper_pressed && MidLaserDist < 0.8 && ((right_avg_LaserDist>1.1)&& RightLaserDist>1.2 && left_avg_LaserDist<0.8)) //) && !pass))
-                // {                                                                                                  //turn right
-                //     while (MidLaserDist < 1.4)
-                //     {
-                //         ROS_INFO("Rotating Right, Left_avg_dist:%f, Right_avg_dist:%f", left_avg_LaserDist, right_avg_LaserDist);
-                //         ros::spinOnce();
-                //         vel.angular.z = angular;
-                //         vel.linear.x = linear;
-                //         vel_pub.publish(vel);
-                //         goStraight(&angular, -M_PI / 9.0, &linear, 0.0);
-                //     }
+                else if (!any_bumper_pressed && MidLaserDist < 0.7 && ((right_avg_LaserDist>1.0)&& RightLaserDist>1.1 && left_avg_LaserDist<1.0)) //) && !pass))
+                {                                                                                                  //turn right
+                    while (MidLaserDist < 1.4)
+                    {
+                        ROS_INFO("Rotating Right, Left_avg_dist:%f, Right_avg_dist:%f", left_avg_LaserDist, right_avg_LaserDist);
+                        ros::spinOnce();
+                        vel.angular.z = angular;
+                        vel.linear.x = linear;
+                        vel_pub.publish(vel);
+                        goStraight(&angular, -M_PI / 9.0, &linear, 0.0);
+                    }
                 // }
                 
                 else if((left_avg_LaserDist<0.8 && right_avg_LaserDist<0.6 && minLaserDist<0.75 && minLaserDist>0.55) && MidLaserDist>0.8){
@@ -505,7 +454,7 @@ int main(int argc, char **argv)
                 }
             }
         }
-
+        updatepos();
         //Updating timer
         secondsElapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - start).count();
         loop_rate.sleep();
