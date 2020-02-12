@@ -488,20 +488,22 @@ velOut velFeedback(float currAngular, float targetAngular, float currSpeed, floa
 }
 
 #define K_GO_STRAIGHT 0 // 500 seems to be too much but still stable, 250 might not be enough
+#define MAX_ANGULAR_FROM_CONTROL 0.4
 void goStraightFeedback(float *angular, float curr_yaw, float ref_angle)
 {
     // P controller 
     float error = yawSmallestDifference(curr_yaw, ref_angle);
+    float new_angular = 0;
 
     if (std::abs(error) > DEG2RAD(0.5)) // error threshold, smaller values considered as noise and ignored
     {
         if (error > 0) // CCW deviation
         {
-            *angular = -K_GO_STRAIGHT * std::abs(DEG2RAD(error));
+            new_angular = -K_GO_STRAIGHT * std::abs(DEG2RAD(error));
         }
         else
         {
-            *angular = K_GO_STRAIGHT * std::abs(DEG2RAD(error));
+            new_angular = K_GO_STRAIGHT * std::abs(DEG2RAD(error));
         }
         ROS_INFO("Feedback control turning");
     }
@@ -509,6 +511,16 @@ void goStraightFeedback(float *angular, float curr_yaw, float ref_angle)
     { // robot going straight, no change on angular vel
         *angular = 0;
     }
+
+    // limit output
+    if (new_angular > MAX_ANGULAR_FROM_CONTROL){
+        *angular = MAX_ANGULAR_FROM_CONTROL;
+    } else if(new_angular < -MAX_ANGULAR_FROM_CONTROL){
+        *angular = -MAX_ANGULAR_FROM_CONTROL;
+    }else{
+        *angular = new_angular;
+    }
+
     ROS_INFO("Feedback control ENABLED! Error is: %f degrees", RAD2DEG(error));
 }
 
@@ -568,7 +580,7 @@ int main(int argc, char **argv)
         {
             initial_Sweep(&yaw, &angular, &linear, &time, &MidLaserDist, &minLaserDist);
             ROS_INFO("Initial Sweeping");
-            check_first_revolve = true;
+            //check_first_revolve = true;
         }
         else if (check_first_revolve)
         {
