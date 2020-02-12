@@ -370,6 +370,10 @@ void goStraight(float *ptr_angular, float angular_speed, float *ptr_linear, floa
     //*ptr_angular = angular_speed;
 }
 
+// float velDifference(float currSpeed, float targetSpeed){
+// return std::abs(targetSpeed - currSpeed);
+// }
+
 double yawSmallestDifference(double yaw_end, double yaw_start)
 {
 
@@ -453,7 +457,37 @@ void steer(float &angular, float &curr_yaw, double desired_angle, bool &done)
     }
 }
 
-#define K_GO_STRAIGHT 500 // 500 seems to be too much but still stable, 250 might not be enough
+typedef struct velocity{
+    double linearOut = 0.0;
+    double angularOut = 0.0;
+} velOut;
+
+velOut velFeedback(float currAngular, float targetAngular, float currSpeed, float targetSpeed){
+
+    velOut targetVel;
+    // Computing Angular velocity ramp
+    if(targetAngular > currAngular){
+        targetVel.angularOut = currAngular + 0.01;
+    }
+    else 
+    {
+        targetVel.angularOut = currAngular - 0.01;        
+    }
+    double kLin = 0.5;
+    // Computing Linear velocity ramp
+    double linDiff = std::abs(targetSpeed - currSpeed);
+    if(targetSpeed > currSpeed){
+        targetVel.linearOut = currSpeed + kLin*linDiff;
+    }
+    else
+    {
+        targetVel.linearOut = currSpeed - kLin*linDiff;        
+    }
+
+    return targetVel;
+}
+
+#define K_GO_STRAIGHT 0 // 500 seems to be too much but still stable, 250 might not be enough
 void goStraightFeedback(float *angular, float curr_yaw, float ref_angle)
 {
     // P controller 
@@ -566,22 +600,24 @@ int main(int argc, char **argv)
                 state = 0; // reset state
             }
             else
-            {
+            {       ROS_INFO("\n Linear: %f, \t Angular %f \n", vel.linear.x, vel.linear.z);
 
                 if (MidLaserDist < 0.4 || minLaserDist < 0.4) //go back
                 {
-                    goStraight(&angular, 0.0, &linear, -0.1);
+                    goStraight(&angular, 0.0, &linear, -0.1); //back
                     ROS_INFO("Backing Up");
                     state = 0; // reset state
                 }
                 else if (!any_bumper_pressed && MidLaserDist >= 1.8 && minLaserDist >= 0.8)
                 {
-                    ROS_INFO("Going Straight Fast");
+                    
                     goStraight(&angular, 0.0, &linear, 0.22); //fast
+                    ROS_INFO("Going Straight Fast");
                     if (state != 2) state = 1; 
                 }
                 else if (!any_bumper_pressed && MidLaserDist >= 1.4 && minLaserDist >= 0.7)
                 {
+                    
                     goStraight(&angular, 0.0, &linear, 0.18); //slow
                     ROS_INFO("Going Straight Slow");
                     if (state != 2) state = 1;
@@ -589,6 +625,7 @@ int main(int argc, char **argv)
                 }
                 else if (!any_bumper_pressed && MidLaserDist >= 1.0 && minLaserDist >= 0.7)
                 {
+
                     goStraight(&angular, 0.0, &linear, 0.15); //really slow
                     ROS_INFO("Going Straight Really Slow");
                     if (state != 2) state = 1;
@@ -607,8 +644,24 @@ int main(int argc, char **argv)
         //Updating timer
         secondsElapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - start).count();
         loop_rate.sleep();
-        vel.angular.z = angular;
-        vel.linear.x = linear;
+
+        velOut targetVelocity = velFeedback(vel.angular.z, angular, vel.linear.x, linear);
+
+        // if(vel.angular.z != angular){
+        //     vel.angular.z = targetVelocity.angularOut;
+        // }else
+        // {
+            vel.angular.z = angular;
+        // }
+        
+        if(vel.linear.x != linear){
+            vel.linear.x = targetVelocity.linearOut;
+        }else
+        {
+            vel.linear.x = linear;
+        }
+        
+
         vel_pub.publish(vel);
     }
 
