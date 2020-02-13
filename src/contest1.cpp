@@ -20,7 +20,8 @@ float angular = 0.0;
 float linear = 0.0;
 float posX = 0.0, posY = 0.0, yaw = 0.0;
 float angle_parallel = 0.0;
-float maxMidDist, maxYaw, original_yaw, current_yaw, current_mid_dist, diag_dist;
+float maxMidDist = 0. ;
+float maxYaw, original_yaw, current_yaw, current_mid_dist, diag_dist;
 float final_ori = 0.0;
 float final_ori_max = 0.0;
 float final_ori_min = 0.0;
@@ -198,6 +199,7 @@ bool sweep(float *yaw, float *angular, float *linear, double *time,
         {
             max_mid_dist_sweep = *MidLaserDist;
             maxYaw_sweep = yaw_sweep;
+            ROS_INFO("fault here");
         }
     }
 
@@ -206,6 +208,7 @@ bool sweep(float *yaw, float *angular, float *linear, double *time,
         *angular = M_PI / 7.0;
         *linear = 0.0;
         //while it is turning left for sweeping
+        ROS_INFO("fault here 2");
         if (*MidLaserDist > maxMidDist && (((yaw_sweep) < sum(current_yaw_sweep, 90.0)) > 3.0) &&
             ((yaw_sweep > sum(current_yaw_sweep, -90.0)) > 3.0) && *MidLaserDist < 10.0 &&
             *minLaserDist > 1.5 && *minLaserDist < 10.0)
@@ -757,7 +760,7 @@ int main(int argc, char **argv)
 
             if (sweeping || (dist_to_sweep > 2.0 && dist_to_sweep < 2.1))
             {
-                sweep(&yaw, &angular, &linear, &time, &posX, &posY, posX_array, posY_array, &k, &MidLaserDist, &minLaserDist);
+                sweep(&yaw, &angular, &linear, &time, &posX, &posY, &k, &MidLaserDist, &minLaserDist);
                 ROS_INFO("Sweeping"); // linear = 0.0;
                 sweep_check = true;
                 state = 0; // reset state
