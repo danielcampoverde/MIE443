@@ -570,7 +570,7 @@ void steer(float &angular, float &curr_yaw, double desired_angle, bool &done)
 
 #define K_GO_STRAIGHT 300 // 500 seems to be too much but still stable, 250 might not be enough
 #define MAX_ANGULAR_FROM_CONTROL 0.4
-void goStraightFeedback(float *angular, float curr_yaw, float ref_angle)
+void goStraightFeedback(float &angular, float curr_yaw, float ref_angle)
 {
     // P controller
     float error = yawSmallestDifference(curr_yaw, ref_angle);
@@ -590,21 +590,21 @@ void goStraightFeedback(float *angular, float curr_yaw, float ref_angle)
     }
     else
     { // robot going straight, no change on angular vel
-        *angular = 0;
+        angular = 0;
     }
 
     // limit output
     if (new_angular > MAX_ANGULAR_FROM_CONTROL)
     {
-        *angular = MAX_ANGULAR_FROM_CONTROL;
+        angular = MAX_ANGULAR_FROM_CONTROL;
     }
     else if (new_angular < -MAX_ANGULAR_FROM_CONTROL)
     {
-        *angular = -MAX_ANGULAR_FROM_CONTROL;
+        angular = -MAX_ANGULAR_FROM_CONTROL;
     }
     else
     {
-        *angular = new_angular;
+        angular = new_angular;
     }
 
     ROS_INFO("Feedback control ENABLED! Error is: %f degrees", RAD2DEG(error));
@@ -737,7 +737,7 @@ int main(int argc, char **argv)
             }
             if (state == 2)
             {
-                goStraightFeedback(&angular, yaw, ref_angle);
+                goStraightFeedback(angular, yaw, ref_angle);
             }
 
             ROS_INFO("Ref yaw saved: %f, curr yaw %f", ref_angle, yaw);
