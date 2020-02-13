@@ -14,6 +14,7 @@
 #define N_BUMPER (3)
 #define RAD2DEG(rad) ((rad)*180. / M_PI)
 #define DEG2RAD(deg) ((deg)*M_PI / 180.)
+#define MAX_ANGULAR 0.3
 
 float angular = 0.0;
 float linear = 0.0;
@@ -278,12 +279,12 @@ void initial_Sweep(float *yaw, float *angular, float *linear, double *time, floa
         if ((*time - current_time) < 6.0)
         {
             *linear = 0.0;
-            *angular = M_PI / 9.0;
+            *angular = MAX_ANGULAR;
             ROS_INFO("Initial Sweep Start");
         }
         else if ((abs(int(RAD2DEG(*yaw)) - int(current_yaw_sweepI)) >= 3)) //(int(RAD2DEG(*yaw)) != int(current_yaw)) &&
         {
-            *angular = M_PI / 9.0;
+            *angular = MAX_ANGULAR;
             *linear = 0.0;
             ROS_INFO("Initial Sweeping, yaw:%f, current yaw:%f", RAD2DEG(*yaw), current_yaw_sweepI);
         } //360 sweep is done
@@ -299,7 +300,7 @@ void initial_Sweep(float *yaw, float *angular, float *linear, double *time, floa
         {
             if ((abs(int(RAD2DEG(*yaw)) - int(maxYaw)) >= 3)) //(int(RAD2DEG(*yaw)) != int(maxYaw)) &&
             {
-                *angular = -M_PI / 7.0;
+                *angular = -MAX_ANGULAR;
                 *linear = 0.0;
                 ROS_INFO("360 done, Sweeping right to maxYaw, yaw:%f, maxYaw:%f", RAD2DEG(*yaw), maxYaw);
             }
@@ -312,7 +313,7 @@ void initial_Sweep(float *yaw, float *angular, float *linear, double *time, floa
         {
             if ((abs(int(RAD2DEG(*yaw)) - int(maxYaw)) >= 3)) //(int(RAD2DEG(*yaw)) != int(maxYaw)) &&
             {
-                *angular = M_PI / 7.0;
+                *angular = MAX_ANGULAR;
                 *linear = 0.0;
                 ROS_INFO("360 done, Sweeping left to maxYaw, yaw:%f, maxYaw:%f", RAD2DEG(*yaw), maxYaw);
             }
@@ -567,7 +568,7 @@ void steer(float &angular, float &curr_yaw, double desired_angle, bool &done)
     }
 }
 
-#define K_GO_STRAIGHT 500 // 500 seems to be too much but still stable, 250 might not be enough
+#define K_GO_STRAIGHT 300 // 500 seems to be too much but still stable, 250 might not be enough
 #define MAX_ANGULAR_FROM_CONTROL 0.4
 void goStraightFeedback(float *angular, float curr_yaw, float ref_angle)
 {
@@ -781,7 +782,7 @@ int main(int argc, char **argv)
                 }
                 else if (!any_bumper_pressed && MidLaserDist >= 1.0 && minLaserDist >= 0.7 && compare_done)
                 {
-                    goStraight(&angular, 0.0, &linear, 0.15); //really slow
+                    goStraight(&angular, 0.0, &linear, 0.1); //really slow
                     ROS_INFO("Going Straight Really Slow");
                     if (state != 2)
                         state = 1;
