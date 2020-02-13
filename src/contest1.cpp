@@ -14,7 +14,7 @@
 #define N_BUMPER (3)
 #define RAD2DEG(rad) ((rad)*180. / M_PI)
 #define DEG2RAD(deg) ((deg)*M_PI / 180.)
-#define MAX_ANGULAR 0.45;//maximum usable speed Pi/7.
+#define MAX_ANGULAR 0.45//maximum usable speed Pi/7.
 
 float angular = 0.0;
 float linear = 0.0;
@@ -456,7 +456,7 @@ void compare_Turn(float *yaw, float *angular, float *linear, float *MidLaserDist
             check_Left_Turn = true; //first left turn is now complete
             LDist = *LTurn;
         }
-        else if (check_Left_Turn && max_mid_dist_L >= 1.5 && !compare_done) //bool
+        else if (check_Left_Turn && max_mid_dist_L >= 1.35 && !compare_done) //bool
         {                                                                   //turn left and exit the function
             if ((std::abs(yaw_compare_Turn - maxYaw_L) > 4.0))
             {
@@ -475,7 +475,7 @@ void compare_Turn(float *yaw, float *angular, float *linear, float *MidLaserDist
             }
         }
         //left is blocked, so will check right now
-        else if (check_Left_Turn && !compare_done && max_mid_dist_L < 1.5)
+        else if (check_Left_Turn && !compare_done && max_mid_dist_L < 1.35)
         {
 
             if ((std::abs((yaw_compare_Turn)-sum(current_yaw_Turn, -90)) > 4.0) && !check_Right_Turn) //deleted final right turn from here
@@ -597,7 +597,7 @@ double yawSmallestDifference(double yaw_end, double yaw_start)
     return relative_yaw;
 }
 
-#define STEER_ANGULAR 0.2
+#define STEER_ANGULAR 0.4
 
 void steer(float &angular, float &curr_yaw, double desired_angle, bool &done)
 {
@@ -734,18 +734,25 @@ velOut velFeedback(float currAngular, float targetAngular, float currSpeed, floa
 
     // Computing Angular velocity ramp
     velOut targetVel;
+
+    double kAng = 0.5;
+    // Computing Linear velocity ramp
+    double angDiff = std::abs(targetAngular - currAngular);
     if (targetAngular > currAngular)
     {
-        targetVel.angularOut = currAngular + 0.01;
+        targetVel.angularOut = currAngular + kAng*angDiff;
     }
     else
     {
+    
+    targetVel.angularOut = currAngular - kAng*angDiff;
     }
-    targetVel.angularOut = currAngular - 0.01;
     double kLin = 0.5;
     // Computing Linear velocity ramp
     double linDiff = std::abs(targetSpeed - currSpeed);
-    if (targetSpeed > currSpeed && !isTurning)
+    if(isTurning){
+        targetSpeed = currSpeed;
+    }else if (targetSpeed > currSpeed)
     {
         targetVel.linearOut = currSpeed + kLin * linDiff;
     }
@@ -876,7 +883,7 @@ int main(int argc, char **argv)
                 }else if(done){ // finish turning when the bumpersare no longer pressed
                         done = false;
                 }   
-                else if (MidLaserDist < 0.55 || minLaserDist < 0.55) //go back
+                else if (MidLaserDist <= 0.5 || minLaserDist <= 0.5) //go back
                 {
                     goStraight(&angular, 0.0, &linear, -0.1);
                     ROS_INFO("Backing Up");
@@ -910,6 +917,7 @@ int main(int argc, char **argv)
                     compare_Turn(&yaw, &angular, &linear, &MidLaserDist, &minLaserDist, &LTurn, &RTurn);
                     ROS_INFO("Compare Turn Function");
                     state = 0; // reset state
+                    isTurning = true;
                 }
             }
         }
