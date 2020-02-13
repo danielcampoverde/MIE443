@@ -210,8 +210,8 @@ bool sweep(float *yaw, float *angular, float *linear, double *time,
         if (current_yaw_sweep <= 90 || current_yaw_sweep >=270 )
 
         {
-             if (*MidLaserDist > max_mid_dist_sweep && (((yaw_sweep) < sum(current_yaw_sweep, 90.0))) ||
-            ((yaw_sweep > sum(current_yaw_sweep, -90.0))) && *MidLaserDist < 10.0 &&
+             if (*MidLaserDist > max_mid_dist_sweep && (((yaw_sweep) < sum(current_yaw_sweep, 75.0))) ||
+            ((yaw_sweep > sum(current_yaw_sweep, -75.0))) && *MidLaserDist < 10.0 &&
             *minLaserDist > 1.5 && *minLaserDist < 10.0)//recording the max yaw
             {
             max_mid_dist_sweep = *MidLaserDist;
@@ -373,6 +373,7 @@ void initial_Sweep(float *yaw, float *angular, float *linear, double *time, floa
         else
         {
             first_sweep = true;
+            ROS_INFO("REVOLUTION DONE");
         }
     }
     else
@@ -837,7 +838,7 @@ int main(int argc, char **argv)
 
             dist_to_sweep = sweepDist(&k, posX_array, posY_array, &posX, &posY);
 
-            if (sweeping || (dist_to_sweep > 1.8 && dist_to_sweep < 2.8))
+            if (sweeping || (dist_to_sweep > 2.5 && dist_to_sweep < 3.0))
             {
                 sweep(&yaw, &angular, &linear, &time, &posX, &posY, &k, &MidLaserDist, &minLaserDist);
                 ROS_INFO("Sweeping"); // linear = 0.0;
@@ -848,7 +849,7 @@ int main(int argc, char **argv)
             else
             {
 
-                if (MidLaserDist < 0.55 || minLaserDist < 0.55) //go back
+                if ((MidLaserDist < 0.55 || minLaserDist < 0.5)) //go back
                 {
                     goStraight(&angular, 0.0, &linear, -0.1);
                     ROS_INFO("Backing Up");
@@ -868,7 +869,7 @@ int main(int argc, char **argv)
                     if (state != 2)
                         state = 1;
                 }
-                else if (!any_bumper_pressed && MidLaserDist >= 0.75 && minLaserDist >= 0.55 && compare_done)
+                else if (!any_bumper_pressed && MidLaserDist >= 0.75 && minLaserDist >= 0.6 && compare_done)
                 {
                     goStraight(&angular, 0.0, &linear, 0.1); //really slow
                     ROS_INFO("Going Straight Really Slow");
@@ -876,7 +877,7 @@ int main(int argc, char **argv)
                         state = 1;
                 }
 
-                else // if (compare_done || (MidLaserDist < 2.0)) //if (!pass)
+                else  if (!compare_done || (MidLaserDist < 0.75)) //if (!pass)
                 {
                     compare_done = false;
                     compare_Turn(&yaw, &angular, &linear, &MidLaserDist, &minLaserDist, &LTurn, &RTurn);
