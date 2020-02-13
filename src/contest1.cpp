@@ -373,7 +373,7 @@ void compare_Turn(float *yaw, float *angular, float *linear, float *MidLaserDist
             check_Left_Turn = true; //first left turn is now complete
             LDist = *LTurn;
         }
-        else if (check_Left_Turn && max_mid_dist_L >= 2.0 && !compare_done) //bool
+        else if (check_Left_Turn && max_mid_dist_L >= 1.7 && !compare_done) //bool
         {                                                                   //turn left and exit the function
             if ((std::abs(yaw_compare_Turn - maxYaw_L) > 3.0))
             {
@@ -392,7 +392,7 @@ void compare_Turn(float *yaw, float *angular, float *linear, float *MidLaserDist
             }
         }
         //left is blocked, so will check right now
-        else if (check_Left_Turn && !compare_done && max_mid_dist_L < 2.0)
+        else if (check_Left_Turn && !compare_done && max_mid_dist_L < 1.7)
         {
 
             if ((std::abs((yaw_compare_Turn)-sum(current_yaw_Turn, -90)) > 3.0) && !check_Right_Turn) //deleted final right turn from here
@@ -414,7 +414,7 @@ void compare_Turn(float *yaw, float *angular, float *linear, float *MidLaserDist
             }
             if (check_Right_Turn && !compare_done)
             {
-                if (((max_mid_dist_R >= 2.0)))
+                if (((max_mid_dist_R >= 1.5)))
                 { //turn right and exit the function
                     if ((std::abs((yaw_compare_Turn)-maxYaw_R) > 3.0))
                     {
