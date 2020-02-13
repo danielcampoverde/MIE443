@@ -14,7 +14,7 @@
 #define N_BUMPER (3)
 #define RAD2DEG(rad) ((rad)*180. / M_PI)
 #define DEG2RAD(deg) ((deg)*M_PI / 180.)
-#define MAX_ANGULAR 0.5;//maximum usable speed Pi/7.
+#define MAX_ANGULAR 0.45;//maximum usable speed Pi/7.
 
 float angular = 0.0;
 float linear = 0.0;
@@ -193,7 +193,7 @@ bool sweep(float *yaw, float *angular, float *linear, double *time,
     else if ((*time - current_time) < 6.0)//first turning left for 4 seconds
     {
         *linear = 0.0;
-        *angular = M_PI / 7.0;
+        *angular = MAX_ANGULAR;
         ROS_INFO("Sweep initializing");
         if (*MidLaserDist > max_mid_dist_sweep && *MidLaserDist < 10. && *minLaserDist > 1.5 && *minLaserDist < 10.)
         {
@@ -202,9 +202,9 @@ bool sweep(float *yaw, float *angular, float *linear, double *time,
         }
     }
 
-    else if ((abs(yaw_sweep - current_yaw_sweep) >= 5.0) && !check_initial_sweep) //int(RAD2DEG(*yaw)) != int(current_yaw
+    else if ((abs(yaw_sweep - current_yaw_sweep) >= 6.0) && !check_initial_sweep) //int(RAD2DEG(*yaw)) != int(current_yaw
     {
-        *angular = M_PI / 7.0;
+        *angular = MAX_ANGULAR;
         *linear = 0.0;
 
         if (current_yaw_sweep <= 90 || current_yaw_sweep >=270 )
@@ -249,7 +249,7 @@ bool sweep(float *yaw, float *angular, float *linear, double *time,
          {
            if ((abs(yaw_sweep - maxYaw_sweep) >= 8.0)) //sweeping CCW
          {
-            *angular = - M_PI / 7.0;
+            *angular = - MAX_ANGULAR;
             *linear = 0.0;
             ROS_INFO("Sweep function, 360 done, Sweeping Left to maxYaw, yaw:%f, maxYaw:%f", yaw_sweep, maxYaw_sweep);
         }
@@ -268,7 +268,7 @@ bool sweep(float *yaw, float *angular, float *linear, double *time,
      {     
         if ((abs(yaw_sweep - maxYaw_sweep) >= 8.0)) //sweeping CCW
         {
-            *angular = M_PI / 7.0;
+            *angular = MAX_ANGULAR;
             *linear = 0.0;
             ROS_INFO("Sweep function, 360 done, Sweeping Left to maxYaw, yaw:%f, maxYaw:%f", yaw_sweep, maxYaw_sweep);
         }
@@ -290,7 +290,7 @@ bool sweep(float *yaw, float *angular, float *linear, double *time,
          {
               if ((abs(yaw_sweep - maxYaw_sweep) >= 8.0)) //(int(RAD2DEG(*yaw)) != int(maxYaw)) &&
         {
-            *angular = M_PI / 7.0;
+            *angular = MAX_ANGULAR;
             *linear = 0.0;
             ROS_INFO("360 done, Sweeping Right to maxYaw, yaw:%f, maxYaw:%f", yaw_sweep, maxYaw_sweep);
         }
@@ -313,7 +313,7 @@ bool sweep(float *yaw, float *angular, float *linear, double *time,
           
         if ((abs(yaw_sweep - maxYaw_sweep) >= 8.0)) //(int(RAD2DEG(*yaw)) != int(maxYaw)) &&
         {
-            *angular = -M_PI / 7.0;
+            *angular = -MAX_ANGULAR;
             *linear = 0.0;
             ROS_INFO("360 done, Sweeping Right to maxYaw, yaw:%f, maxYaw:%f", yaw_sweep, maxYaw_sweep);
         }
@@ -381,7 +381,7 @@ void initial_Sweep(float *yaw, float *angular, float *linear, double *time, floa
         first_sweep = true;
         if (maxYaw < 0)
         {
-            if ((abs(int(RAD2DEG(*yaw)) - int(maxYaw)) >= 5)) //(int(RAD2DEG(*yaw)) != int(maxYaw)) &&
+            if ((abs(int(RAD2DEG(*yaw)) - int(maxYaw)) >= 6)) //(int(RAD2DEG(*yaw)) != int(maxYaw)) &&
             {
                 *angular = -MAX_ANGULAR;
                 *linear = 0.0;
@@ -439,10 +439,10 @@ void compare_Turn(float *yaw, float *angular, float *linear, float *MidLaserDist
             yaw_compare_Turn += 360;
         }
 
-        if ((std::abs((yaw_compare_Turn)-sum(current_yaw_Turn, 90)) > 3.0) && !check_Left_Turn && !compare_done)
+        if ((std::abs((yaw_compare_Turn)-sum(current_yaw_Turn, 90)) > 4.0) && !check_Left_Turn && !compare_done)
         {
             *linear = 0.0;
-            *angular = M_PI / 7.0;
+            *angular = MAX_ANGULAR*0.9;
             if (*MidLaserDist > max_mid_dist_L && *MidLaserDist < 10. && *minLaserDist > 0.95 && *minLaserDist < 10.)
             {
                 max_mid_dist_L = *MidLaserDist;
@@ -451,17 +451,17 @@ void compare_Turn(float *yaw, float *angular, float *linear, float *MidLaserDist
             ROS_INFO("Compare: Turning Left, abs diff:%f", (std::abs((yaw_compare_Turn)-sum(current_yaw_Turn, 90))));
             //ROS_INFO("yaw:%f, target yaw:%f", (yaw_compare_Turn), sum(current_yaw_Turn,90));
         }
-        else if ((std::abs((yaw_compare_Turn)-sum(current_yaw_Turn, 90)) <= 3.0) && !check_Left_Turn && !compare_done) //bool
+        else if ((std::abs((yaw_compare_Turn)-sum(current_yaw_Turn, 90)) <= 4.0) && !check_Left_Turn && !compare_done) //bool
         {
             check_Left_Turn = true; //first left turn is now complete
             LDist = *LTurn;
         }
         else if (check_Left_Turn && max_mid_dist_L >= 1.5 && !compare_done) //bool
         {                                                                   //turn left and exit the function
-            if ((std::abs(yaw_compare_Turn - maxYaw_L) > 3.0))
+            if ((std::abs(yaw_compare_Turn - maxYaw_L) > 4.0))
             {
                 *linear = 0.0;
-                *angular = -M_PI / 7.0;
+                *angular = -MAX_ANGULAR*0.9;
                 ROS_INFO("Compare:Turning to maxYawL");
                 //ROS_INFO("Turning Right, yaw:%f, max yawL:%f", (yaw_compare_Turn), maxYaw_L);
             }
@@ -478,10 +478,10 @@ void compare_Turn(float *yaw, float *angular, float *linear, float *MidLaserDist
         else if (check_Left_Turn && !compare_done && max_mid_dist_L < 1.5)
         {
 
-            if ((std::abs((yaw_compare_Turn)-sum(current_yaw_Turn, -90)) > 3.0) && !check_Right_Turn) //deleted final right turn from here
+            if ((std::abs((yaw_compare_Turn)-sum(current_yaw_Turn, -90)) > 4.0) && !check_Right_Turn) //deleted final right turn from here
             {
                 *linear = 0.0;
-                *angular = -M_PI / 7.0;
+                *angular = -MAX_ANGULAR*0.9;
                 if (*MidLaserDist > max_mid_dist_R && *MidLaserDist < 10. && *minLaserDist > 0.95 && *minLaserDist < 10.)
                 {
                     max_mid_dist_R = *MidLaserDist;
@@ -499,10 +499,10 @@ void compare_Turn(float *yaw, float *angular, float *linear, float *MidLaserDist
             {
                 if (((max_mid_dist_R >= 1.3)))
                 { //turn right and exit the function
-                    if ((std::abs((yaw_compare_Turn)-maxYaw_R) > 3.0))
+                    if ((std::abs((yaw_compare_Turn)-maxYaw_R) > 4.0))
                     {
                         *linear = 0.0;
-                        *angular = M_PI / 7.0;
+                        *angular = MAX_ANGULAR*0.9;
 
                         ROS_INFO("Compare: Turning to maxYaw_R, Turning Left, yaw:%f, target yaw:%f", (yaw_compare_Turn), maxYaw_R);
                     }
@@ -536,7 +536,7 @@ void compare_Turn(float *yaw, float *angular, float *linear, float *MidLaserDist
                 else //if both right and left are blocked then just turn around until mid dist is > 2.0
                 {
                     *linear = 0.0;
-                    *angular = -M_PI / 7.0;
+                    *angular = -MAX_ANGULAR*0.9;
 
                     ROS_INFO("Compare: Cornered Turning Around, yaw:%f, target yaw:%f", (yaw_compare_Turn), current_yaw_Turn);
                     if (*MidLaserDist > 2.0)
@@ -838,7 +838,7 @@ int main(int argc, char **argv)
 
             dist_to_sweep = sweepDist(&k, posX_array, posY_array, &posX, &posY);
 
-            if (sweeping || (dist_to_sweep > 2.5 && dist_to_sweep < 3.0))
+            if (sweeping || (dist_to_sweep > 2.2 && dist_to_sweep < 3.0))
             {
                 sweep(&yaw, &angular, &linear, &time, &posX, &posY, &k, &MidLaserDist, &minLaserDist);
                 ROS_INFO("Sweeping"); // linear = 0.0;
