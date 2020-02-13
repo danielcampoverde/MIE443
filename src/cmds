@@ -1,0 +1,17 @@
+simulation
+
+roslaunch mie443_contest1 turtlebot_world.launch world:=3
+roslaunch turtlebot_gazebo gmapping_demo.launch 
+roslaunch turtlebot_rviz_launchers view_navigation.launch 
+rosrun mie443_contest1 contest1 
+
+
+TurtleBot
+
+roslaunch turtlebot_bringup minimal.launch
+roslaunch turtlebot_gazebo gmapping_demo.launch 
+oslaunch turtlebot_rviz_launchers view_navigation.launch 
+rosrun mie443_contest1 contest1 
+
+rosrun map_server map_server -f map
+

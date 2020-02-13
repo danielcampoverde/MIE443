@@ -154,20 +154,24 @@ float sum(float a, float b)
     }
 }
 
+     float maxYaw_sweep, max_mid_dist_sweep;
+    float yaw_sweep;
+
 bool sweep(float *yaw, float *angular, float *linear, double *time,
-           float *posX, float *posY, float *posX_array, float *posY_array, int *k, float *MidLaserDist, float *minLaserDist)
+           float *posX, float *posY, int *k, float *MidLaserDist, float *minLaserDist)
 {
-    float F_Dist;
+
     sweeping = true;
-    float maxYaw_sweep, max_mid_dist_sweep, yaw_sweep;
+    yaw_sweep = *yaw;
 
     //pass = true;
 
     if (!check_yaw)
     {
+        //yaw_sweep = 0;
         *linear = 0.0;
         *angular = 0.0;
-        yaw_sweep = *yaw;
+        
         current_time = *time;
         current_yaw_sweep = RAD2DEG(*yaw);
         check_yaw = true;
@@ -721,9 +725,10 @@ int main(int argc, char **argv)
 
         float current_mid_dist = MidLaserDist;
 
-        if (time < 10.0 || !check_first_revolve)
+        if (time < 10.0 || !check_first_revolve || sweeping)
         {
-            initial_Sweep(&yaw, &angular, &linear, &time, &MidLaserDist, &minLaserDist);
+            //initial_Sweep(&yaw, &angular, &linear, &time, &MidLaserDist, &minLaserDist);
+            sweep(&yaw, &angular, &linear, &time, &posX, &posY, &k,  &MidLaserDist, &minLaserDist);
             ROS_INFO("Initial Sweeping");
             //check_first_revolve = true;
         }
