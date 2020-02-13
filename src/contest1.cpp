@@ -798,9 +798,12 @@ int main(int argc, char **argv)
         ROS_INFO("Dist between sweeps: %f", sweepDist(&k, posX_array, posY_array, &posX, &posY));
         //ROS_INFO("Position:(%f,%f)", posX, posY);
         bool any_bumper_pressed = false;
+        bool bumper_pressed [N_BUMPER] = {false, false, false};
+
         for (uint32_t b_idx = 0; b_idx < N_BUMPER; ++b_idx)
         {
             any_bumper_pressed |= (bumper[b_idx] == kobuki_msgs::BumperEvent::PRESSED);
+            bumper_pressed[b_idx] |= (bumper[b_idx] == kobuki_msgs::BumperEvent::PRESSED);
         }
 
         double time = double(secondsElapsed);
@@ -848,8 +851,29 @@ int main(int argc, char **argv)
             }
             else
             {
-
-                if ((MidLaserDist < 0.55 || minLaserDist < 0.5)) //go back
+                if (any_bumper_pressed){
+                    if(bumper_pressed[0]){
+                        steer(angular, yaw, -90, done);
+                        ROS_INFO("Left Bumper Pressed!");              
+                    }
+                    else if (bumper_pressed[1])
+                    {
+                        goStraight(&angular, 0.0, &linear, -0.1);
+                        ROS_INFO("Front Bumper Pressed!");
+                        if (state != 2)
+                        state = 1; 
+                    }else if (bumper_pressed[2])
+                    {
+                        steer(angular, yaw, 90, done);
+                        ROS_INFO("Right Bumper Pressed!");
+                    }
+                    if(done){
+                        state = 0; // reset state
+                        done = false;
+                        ROS_INFO("EXITING...");
+                    }                
+                }
+                else if (MidLaserDist < 0.55 || minLaserDist < 0.55) //go back
                 {
                     goStraight(&angular, 0.0, &linear, -0.1);
                     ROS_INFO("Backing Up");
