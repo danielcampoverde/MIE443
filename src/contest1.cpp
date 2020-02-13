@@ -14,7 +14,7 @@
 #define N_BUMPER (3)
 #define RAD2DEG(rad) ((rad)*180. / M_PI)
 #define DEG2RAD(deg) ((deg)*M_PI / 180.)
-#define MAX_ANGULAR 0.3
+#define MAX_ANGULAR 0.5;//maximum usable speed Pi/7.
 
 float angular = 0.0;
 float linear = 0.0;
@@ -364,7 +364,7 @@ void initial_Sweep(float *yaw, float *angular, float *linear, double *time, floa
             *angular = MAX_ANGULAR;
             ROS_INFO("Initial Sweep Start");
         }
-        else if ((abs(int(RAD2DEG(*yaw)) - int(current_yaw_sweepI)) >= 3)) //(int(RAD2DEG(*yaw)) != int(current_yaw)) &&
+        else if ((abs(int(RAD2DEG(*yaw)) - int(current_yaw_sweepI)) >= 6)) //(int(RAD2DEG(*yaw)) != int(current_yaw)) &&
         {
             *angular = MAX_ANGULAR;
             *linear = 0.0;
@@ -381,7 +381,7 @@ void initial_Sweep(float *yaw, float *angular, float *linear, double *time, floa
         first_sweep = true;
         if (maxYaw < 0)
         {
-            if ((abs(int(RAD2DEG(*yaw)) - int(maxYaw)) >= 3)) //(int(RAD2DEG(*yaw)) != int(maxYaw)) &&
+            if ((abs(int(RAD2DEG(*yaw)) - int(maxYaw)) >= 5)) //(int(RAD2DEG(*yaw)) != int(maxYaw)) &&
             {
                 *angular = -MAX_ANGULAR;
                 *linear = 0.0;
@@ -394,7 +394,7 @@ void initial_Sweep(float *yaw, float *angular, float *linear, double *time, floa
         }
         else if (maxYaw >= 0)
         {
-            if ((abs(int(RAD2DEG(*yaw)) - int(maxYaw)) >= 3)) //(int(RAD2DEG(*yaw)) != int(maxYaw)) &&
+            if ((abs(int(RAD2DEG(*yaw)) - int(maxYaw)) >= 5)) //(int(RAD2DEG(*yaw)) != int(maxYaw)) &&
             {
                 *angular = MAX_ANGULAR;
                 *linear = 0.0;
