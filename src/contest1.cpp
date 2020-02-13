@@ -729,7 +729,7 @@ typedef struct velocity
     double angularOut = 0.0;
 } velOut;
 
-velOut velFeedback(float currAngular, float targetAngular, float currSpeed, float targetSpeed)
+velOut velFeedback(float currAngular, float targetAngular, float currSpeed, float targetSpeed, bool isTurning)
 {
 
     // Computing Angular velocity ramp
@@ -745,7 +745,7 @@ velOut velFeedback(float currAngular, float targetAngular, float currSpeed, floa
     double kLin = 0.5;
     // Computing Linear velocity ramp
     double linDiff = std::abs(targetSpeed - currSpeed);
-    if (targetSpeed > currSpeed)
+    if (targetSpeed > currSpeed && !isTurning)
     {
         targetVel.linearOut = currSpeed + kLin * linDiff;
     }
@@ -787,6 +787,7 @@ int main(int argc, char **argv)
     int state = 0; // 0 - do nothing, 1 - save ref_angle, 2 - feedback control
     float ref_angle = 0;
 
+
     while (ros::ok() && secondsElapsed <= 480)
     {
         ros::spinOnce();
@@ -808,6 +809,7 @@ int main(int argc, char **argv)
 
         double time = double(secondsElapsed);
         diag_dist = sqrt((posX * posX) + (posY * posY));
+        bool isTurning = false;
 
         float current_mid_dist = MidLaserDist;
 
@@ -848,13 +850,15 @@ int main(int argc, char **argv)
                 sweep_check = true;
                 state = 0; // reset state
                 compare_done = true; 
+                isTurning = true;
             }
             else
             {
-                if (any_bumper_pressed){
+                if (any_bumper_pressed && !done){
                     if(bumper_pressed[0]){
                         steer(angular, yaw, -90, done);
-                        ROS_INFO("Left Bumper Pressed!");              
+                        ROS_INFO("Left Bumper Pressed!");
+                        isTurning = true;           
                     }
                     else if (bumper_pressed[1])
                     {
@@ -866,13 +870,12 @@ int main(int argc, char **argv)
                     {
                         steer(angular, yaw, 90, done);
                         ROS_INFO("Right Bumper Pressed!");
+                        isTurning = true;
                     }
-                    if(done){
-                        state = 0; // reset state
+                                 
+                }else if(done){ // finish turning when the bumpersare no longer pressed
                         done = false;
-                        ROS_INFO("EXITING...");
-                    }                
-                }
+                }   
                 else if (MidLaserDist < 0.55 || minLaserDist < 0.55) //go back
                 {
                     goStraight(&angular, 0.0, &linear, -0.1);
@@ -914,14 +917,14 @@ int main(int argc, char **argv)
         //Updating timer
         secondsElapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - start).count();
         loop_rate.sleep();
-        velOut targetVelocity = velFeedback(vel.angular.z, angular, vel.linear.x, linear);
+        velOut targetVelocity = velFeedback(vel.angular.z, angular, vel.linear.x, linear, isTurning);
 
-        // if(vel.angular.z != angular){
-        //     vel.angular.z = targetVelocity.angularOut;
-        // }else
-        // {
-        vel.angular.z = angular;
-        // }
+        if(vel.angular.z != angular){
+            vel.angular.z = targetVelocity.angularOut;
+        }else
+        {
+            vel.angular.z = angular;
+        }
 
         if (vel.linear.x != linear)
         {
