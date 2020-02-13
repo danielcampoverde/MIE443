@@ -639,6 +639,35 @@ void updatepos()
     }
 }
 
+typedef struct velocity{
+    double linearOut = 0.0;
+    double angularOut = 0.0;
+} velOut;
+
+velOut velFeedback(float currAngular, float targetAngular, float currSpeed, float targetSpeed){
+
+    // Computing Angular velocity ramp
+    velOut targetVel;
+    if(targetAngular > currAngular){
+        targetVel.angularOut = currAngular + 0.01;
+    }
+    else 
+    {
+    }
+        targetVel.angularOut = currAngular - 0.01;        
+    double kLin = 0.5;
+    // Computing Linear velocity ramp
+    double linDiff = std::abs(targetSpeed - currSpeed);
+    if(targetSpeed > currSpeed){
+        targetVel.linearOut = currSpeed + kLin*linDiff;
+    }
+    else
+    {
+        targetVel.linearOut = currSpeed - kLin*linDiff;        
+    }
+
+    return targetVel;
+}
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "image_listener");
@@ -771,8 +800,23 @@ int main(int argc, char **argv)
         //Updating timer
         secondsElapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - start).count();
         loop_rate.sleep();
-        vel.angular.z = angular;
-        vel.linear.x = linear;
+        velOut targetVelocity = velFeedback(vel.angular.z, angular, vel.linear.x, linear);
+
+        // if(vel.angular.z != angular){
+        //     vel.angular.z = targetVelocity.angularOut;
+        // }else
+        // {
+            vel.angular.z = angular;
+        // }
+        
+        if(vel.linear.x != linear){
+            vel.linear.x = targetVelocity.linearOut;
+        }else
+        {
+            vel.linear.x = linear;
+        }
+        
+
         vel_pub.publish(vel);
     }
 
